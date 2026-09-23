@@ -116,6 +116,15 @@ function apiCandidates(path) {
   const list = [ACTIVE_API + path];
   if (DEFAULT_API && DEFAULT_API !== ACTIVE_API) list.push(DEFAULT_API + path);
   if (ACTIVE_API !== '') list.push(path);
+  // Local fallback: file:// double-click karne par bhi local backend pakad lega
+  // (https page par http fallback block hota hai, isliye skip)
+  try {
+    if (location.protocol !== 'https:') {
+      for (const base of ['http://localhost:3000', 'http://127.0.0.1:3000']) {
+        if (base !== ACTIVE_API && base !== DEFAULT_API) list.push(base + path);
+      }
+    }
+  } catch {}
   return [...new Set(list)];
 }
 async function apiPostInfo(url) {
@@ -159,7 +168,7 @@ function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = 
 
 // Backend fail hint (in-build — user setting nahi)
 function apiHint() {
-  if (!DEFAULT_API && !ACTIVE_API) return ' 💡 Backend abhi set nahi hai.';
+  if (!DEFAULT_API && !ACTIVE_API) return ' 💡 Server OFF lag raha hai — start.bat chalao (server ON rakho), phir retry karo.';
   return '';
 }
 
