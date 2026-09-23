@@ -369,8 +369,18 @@ app.get('/api/download', async (req, res) => {
   }
 });
 
-// Frontend
-app.get('*', (req, res) => {
+// ---- FRONTEND LINK ----
+// public/index.html ko web pe serve karo
+// CHAIN: Browser (index.html) --fetch /api/*--> server.js (ye file) --yt-dlp+ffmpeg--> video
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// SPA fallback: /api chhod ke har GET ko index.html do (Express 4 + 5 dono me chalega)
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API route nahi mila' });
+  if (req.path.includes('.') && req.path !== '/') return next(); // static file miss ho to next
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
