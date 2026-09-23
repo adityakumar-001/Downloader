@@ -376,11 +376,23 @@ app.post('/api/info', async (req, res) => {
   } catch (e) {
     console.error('INFO ERROR:', e.message);
     const msg = String((e && (e.stderr || e.message)) || '');
-    if (msg.includes('Private') || msg.includes('Login required')) {
-      return res.status(400).json({ error: 'Ye video private hai ya login mangta hai. 🔑 Apne YouTube account ke cookies lagao (page me 🔑 option) — sirf wahi videos khulengi jo tumhare account ko dikhti hain.' });
+    if (/private video/i.test(msg)) {
+      return res.status(400).json({ error: 'Ye video private hai. 🔑 Apne YouTube account ke cookies lagao — sirf wahi videos khulengi jo tumhare account ko dikhti hain.' });
     }
-    if (/sign in to confirm|not a bot|429|too many requests/i.test(msg)) {
-      return res.status(502).json({ error: 'YouTube ne temporarily block kiya hai (bot-check). 1-2 min ruk kar dobara try karo, ya 🔑 apne cookies lagao — aksar turant chal padta hai.' });
+    if (/members.only|join this channel|channel membership/i.test(msg)) {
+      return res.status(400).json({ error: 'Ye video sirf channel MEMBERS ke liye hai. Member wale account ke 🔑 cookies lagao, tab khulega.' });
+    }
+    if (/confirm your age|age.restrict|age.gate/i.test(msg)) {
+      return res.status(400).json({ error: 'Ye video age-restricted (18+) hai. Adult YouTube account ke 🔑 cookies lagao.' });
+    }
+    if (/unavailable|deleted|has been removed|not available/i.test(msg)) {
+      return res.status(400).json({ error: 'Ye video YouTube par available nahi hai (delete/private/region-block ho sakta hai). Link check karo.' });
+    }
+    if (/login required|log in to confirm|please log in/i.test(msg)) {
+      return res.status(400).json({ error: 'Ye video login mangta hai. 🔑 Apne YouTube account ke cookies lagao.' });
+    }
+    if (/sign in to confirm|not a bot|429|too many requests|403|failed to extract|unable to extract|player response|nsig|throttl|po.?token|did not get video|unable to download api|http error/i.test(msg)) {
+      return res.status(502).json({ error: 'YouTube ne block kiya hai (server IP bot-check). 1-2 min ruk kar retry karo, ya 🔑 apne cookies lagao — aksar turant chal padta hai. Localhost (start.bat) par yehi link pakka chalega.' });
     }
     if (msg.includes('Unsupported URL') || msg.includes('not a valid URL')) {
       return res.status(400).json({ error: 'Ye link support nahi hota. YouTube, Instagram, Facebook, TikTok, X, Vimeo, Dailymotion ka public link try karo.' });
@@ -498,10 +510,16 @@ app.get('/api/download', async (req, res) => {
     cleanupFiles(base);
     if (!res.headersSent) {
       const m = String((e && (e.stderr || e.message)) || '');
-      if (/private|login required/i.test(m)) {
-        res.status(400).send('Ye video private hai ya login mangta hai. Apne YouTube cookies lagao (sirf tumhare account wale videos khulenge).');
-      } else if (/sign in to confirm|not a bot|429/i.test(m)) {
-        res.status(502).send('YouTube bot-check lag gaya. Apne cookies lagakar dobara try karo.');
+      if (/private video/i.test(m)) {
+        res.status(400).send('Ye video private hai. Apne YouTube cookies lagao (sirf tumhare account wale videos khulenge).');
+      } else if (/members.only|join this channel|channel membership/i.test(m)) {
+        res.status(400).send('Ye video sirf channel MEMBERS ke liye hai. Member account ke cookies lagao.');
+      } else if (/confirm your age|age.restrict|age.gate/i.test(m)) {
+        res.status(400).send('Ye video age-restricted (18+) hai. Adult account ke cookies lagao.');
+      } else if (/unavailable|not available|deleted|has been removed/i.test(m)) {
+        res.status(400).send('Ye video YouTube par available nahi hai (delete/private/region-block).');
+      } else if (/login required|log in|sign in to confirm|not a bot|429|too many requests|403|failed to extract|unable to extract|player response|nsig|throttl|po.?token|http error/i.test(m)) {
+        res.status(502).send('YouTube ne block kiya hai (server IP bot-check). Apne cookies lagakar dobara try karo, ya localhost (start.bat) use karo.');
       } else {
         res.status(500).send('Download me error aaya: ' + (e.message || ''));
       }
