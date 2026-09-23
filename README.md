@@ -16,7 +16,8 @@ No login. No length limit. 100% free.
 | Home / Downloader | `/` (`docs/index.html`) | Link paste → quality chuno → download. Qualities server se dynamic aati hain (size + 4K badge samet) |
 | Share / Download page | `/download.html?url=VIDEO_LINK&quality=720` | Direct shareable download link — khulte hi auto-download shuru. `&quality=2160\|1440\|1080\|720\|480\|360\|best\|audio`, `&auto=0` se auto-start band, `&api=` se alag server |
 
-Dono pages same backend API use karte hain. Agar frontend alag host (jaise GitHub Pages) par hai to page me **⚙️ API setting** me backend URL save karo, ya link me `?api=https://aapka-server.com` jodo.
+Dono pages same backend API use karte hain — **API in-build hai, user ko koi setting nahi karni.**
+Owner (aap) sirf ek baar `docs/config.js` me `window.VD_DEFAULT_API = "https://aapka-server.onrender.com"` dalo. Uske baad har user auto-connect hoga (same-origin → DEFAULT → fallback). `?api=` sirf share-link override ke liye raha hai.
 
 ## 🚀 Quick Start (Windows)
 
@@ -53,9 +54,9 @@ Repo ka link bhejne se website **nahi** khulti — pehle Pages ON karna padta ha
 1. https://render.com par free account banao → **New +** → **Web Service** → apna GitHub repo connect karo.
 2. Settings: **Build Command** = `npm install`, **Start Command** = `npm start`. (PORT Render khud deta hai — code me support hai.)
 3. Deploy ke baad URL milega, jaise `https://video-downloader-xyz.onrender.com`.
-4. Website ko backend se jodo — 2 tarike:
-   - Link me jod do: `https://USERNAME.github.io/REPO-NAME/?api=https://video-downloader-xyz.onrender.com`
-   - Ya website par **⚙️ API setting** me backend URL paste karke **Save** dabao (browser me save rehta hai).
+4. Website ko backend se jodo — **sirf 1 line (in-build, user ko kuch nahi karna):**
+   `docs/config.js` kholo aur dalo: `window.VD_DEFAULT_API = "https://video-downloader-xyz.onrender.com";`
+   Save + commit + push. Bas — ab har visitor auto-connect hoga, koi ⚙️ setting nahi.
 
 `PORT` env se port set hota hai (default `3000`). Railway/VPS par bhi same: `npm install` → `npm start`.
 

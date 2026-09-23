@@ -127,17 +127,7 @@
       </div>
     </div>
 
-    <details class="api">
-      <summary>⚙️ API / Server setting (GitHub Pages ya alag server se chala rahe ho to)</summary>
-      <div class="row" style="margin-top:10px;">
-        <input id="apiBase" type="text" placeholder="https://aapka-server.com (khaali = yahi server)" />
-        <button class="secondary small" id="saveApi">Save</button>
-      </div>
-      <code>GET /api/health
-POST /api/info  {"url":"https://..."}
-GET  /api/download?url=...&amp;quality=2160|1440|1080|720|480|360|best|audio
-Share page: download.html?url=...&amp;quality=720</code>
-    </details>
+    <div class="msg" id="srvStatus" style="margin-top:10px;font-size:12px;opacity:.7;"></div>
   </div>
 
   <div class="card">
@@ -160,16 +150,76 @@ Share page: download.html?url=...&amp;quality=720</code>
   </footer>
 </div>
 
+<!-- IN-BUILD API: owner docs/config.js me backend URL ek baar dalega, user ko kuch nahi karna -->
+<script src="./config.js"></script>
 <script>
-// API base: ?api=https://server — ya saved setting — ya khaali (same origin)
-(function initApi() {
-  try {
-    const p = new URLSearchParams(location.search).get('api');
-    if (p) localStorage.setItem('vd_api_base', p.replace(/\/+$/, ''));
-  } catch {}
+// ZERO-CONFIG API (in-build) — user ko koi setting nahi karni.
+// Priority: ?api= (share link) > purani saved value > docs/config.js (DEFAULT) > same-origin ('')
+const DEFAULT_API = ((typeof window.VD_DEFAULT_API === 'string' ? window.VD_DEFAULT_API : '') || '').trim().replace(/\/+$/, '');
+const getQueryApi = () => { try { return (new URLSearchParams(location.search).get('api') || '').trim().replace(/\/+$/, ''); } catch { return ''; } };
+const getSavedApi = () => { try { return (localStorage.getItem('vd_api_base') || '').trim().replace(/\/+$/, ''); } catch { return ''; } };
+let ACTIVE_API = getQueryApi() || getSavedApi() || DEFAULT_API || '';
+try { if (getQueryApi()) localStorage.setItem('vd_api_base', getQueryApi()); } catch {}
+const apiBase = () => ACTIVE_API;
+const api = (path) => ACTIVE_API + path;
+
+// Backend candidates (auto-fallback): pehle ACTIVE, phir DEFAULT, phir same-origin
+function apiCandidates(path) {
+  const list = [ACTIVE_API + path];
+  if (DEFAULT_API && DEFAULT_API !== ACTIVE_API) list.push(DEFAULT_API + path);
+  if (ACTIVE_API !== '') list.push(path);
+  return [...new Set(list)];
+}
+// POST /api/info with auto-fallback (network fail ho to dusra candidate try karo)
+async function apiPostInfo(url) {
+  let lastErr = null;
+  for (const u of apiCandidates('/api/info')) {
+    try {
+      const r = await fetch(u, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { ACTIVE_API = u.replace(/\/api\/info$/, ''); return d; }
+      lastErr = new Error(d.error || ('Server error (' + r.status + ')'));
+      if (r.status === 400 || r.status === 404) throw lastErr; // asli error, fallback bekar
+    } catch (e) { lastErr = e; if (e && /^(Sahi video|Ye video|Ye link)/.test(e.message)) throw e; }
+  }
+  throw lastErr || new Error('Server se connect nahi ho paya');
+}
+// GET /api/download with auto-fallback (stream response wapas deta hai)
+async function apiGetDownload(url, q) {
+  let lastErr = null;
+  for (const u of apiCandidates('/api/download') ) {
+    try {
+      const full = u + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
+      const r = await fetch(full);
+      if (r.ok) { ACTIVE_API = u.replace(/\/api\/download$/, ''); return r; }
+      const t = await r.text().catch(() => '');
+      lastErr = new Error(t || 'Download fail ho gaya');
+      if (r.status === 400 || r.status === 404) throw lastErr;
+    } catch (e) { lastErr = e; if (e && /^(Sahi video)/.test(e.message)) throw e; }
+  }
+  throw lastErr || new Error('Download fail ho gaya');
+}
+// Page khulte hi backend ping karo (status dot)
+(async function pingServer() {
+  const el = document.getElementById('srvStatus');
+  if (!el) return;
+  const show = (t) => { el.textContent = t; };
+  show('🔄 Server se connect ho raha hai...');
+  for (const u of apiCandidates('/api/health')) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 7000);
+      const r = await fetch(u, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (r.ok) { ACTIVE_API = u.replace(/\/api\/health$/, ''); show('🟢 Server connected — download ready'); return; }
+    } catch {}
+  }
+  if (!DEFAULT_API && !ACTIVE_API) show('🔴 Backend abhi set nahi hai — owner docs/config.js me server URL dale. Localhost par start.bat chalega.');
+  else show('🔴 Server se connect nahi ho paya — thodi der me retry karo.');
 })();
-const apiBase = () => { try { return (localStorage.getItem('vd_api_base') || '').replace(/\/+$/, ''); } catch { return ''; } };
-const api = (path) => apiBase() + path;
 
 const $ = (id) => document.getElementById(id);
 const urlInput = $('url'), msg = $('msg'), result = $('result'),
@@ -179,23 +229,11 @@ const urlInput = $('url'), msg = $('msg'), result = $('result'),
 
 function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
 
-// GitHub Pages / file se khola ho aur backend set na ho to hint dikhao
-// (Pages par sirf website hoti hai — download ke liye backend chahiye)
+// Backend fail ho to chhota hint (in-build hone se user ko setting nahi karni)
 function apiHint() {
-  try {
-    const h = location.hostname || '';
-    if (!apiBase() && (h.endsWith('github.io') || location.protocol === 'file:'))
-      return '<br>💡 GitHub Pages par sirf website hai — download ke liye apna backend (Render/Railway/VPS) deploy karo aur neeche ⚙️ API setting me uska URL save karo. Details README me hain.';
-  } catch {}
+  if (!DEFAULT_API && !ACTIVE_API) return '<br>💡 Backend abhi set nahi hai.';
   return '';
 }
-
-// Settings
-$('apiBase').value = apiBase();
-$('saveApi').onclick = () => {
-  try { localStorage.setItem('vd_api_base', $('apiBase').value.trim().replace(/\/+$/, '')); } catch {}
-  setMsg('✅ API server save ho gaya: ' + (apiBase() || 'yahi server (same origin)'), 'ok');
-};
 
 // Paste button
 $('pasteBtn').onclick = async () => {
@@ -235,14 +273,9 @@ $('dlBtn').onclick = async () => {
   result.classList.remove('show');
   dlmsg.textContent = '';
   try {
-    // STEP 1: info nikalo
+    // STEP 1: info nikalo (auto-fallback ke saath — in-build server se)
     setMsg('<span class="spinner"></span>Video dhoonda ja raha hai... (4K/lambi video me 10-20 sec lag sakta hai)', 'load');
-    const infoRes = await fetch(api('/api/info'), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    const d = await infoRes.json();
-    if (!infoRes.ok) throw new Error(d.error || 'Info nahi mili');
+    const d = await apiPostInfo(url);
 
     // Asli qualities dropdown me bharo
     rebuildQualities(d.qualities, q0);
@@ -265,12 +298,7 @@ $('dlBtn').onclick = async () => {
     dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... 4K/bada video ho to time lagega, page band mat karo ⏳';
     dprogress.style.display = 'block'; dbar.style.width = '10%';
 
-    const apiUrl = api('/api/download') + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
-    const r = await fetch(apiUrl);
-    if (!r.ok) {
-      const t = await r.text();
-      throw new Error(t || 'Download fail ho gaya');
-    }
+    const r = await apiGetDownload(url, q);
     let fname = 'video' + (q === 'audio' ? '.mp3' : '.mp4');
     const cd = r.headers.get('Content-Disposition');
     if (cd) {
@@ -307,13 +335,12 @@ $('dlBtn').onclick = async () => {
   }
 };
 
-// Share link: download.html?url=...&quality=... copy karo
+// Share link: download.html?url=...&quality=... copy karo (API in-build hai, &api jodne ki jarurat nahi)
 $('shareLink').onclick = (e) => {
   e.preventDefault();
   if (!lastUrl) return;
   const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'download.html?url='
-    + encodeURIComponent(lastUrl) + '&quality=' + encodeURIComponent(lastQuality)
-    + (apiBase() ? '&api=' + encodeURIComponent(apiBase()) : '');
+    + encodeURIComponent(lastUrl) + '&quality=' + encodeURIComponent(lastQuality);
   (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(
     () => { dlmsg.className = 'msg ok'; dlmsg.textContent = '🔗 Share link copy ho gaya: ' + link; },
     () => { dlmsg.className = 'msg load'; dlmsg.textContent = '🔗 Share link: ' + link; }
@@ -321,8 +348,7 @@ $('shareLink').onclick = (e) => {
 };
 $('openDlPage').onclick = (e) => {
   e.preventDefault();
-  const base = 'download.html' + (lastUrl ? '?url=' + encodeURIComponent(lastUrl) + '&quality=' + encodeURIComponent(lastQuality) : '');
-  location.href = base + (apiBase() ? (base.includes('?') ? '&' : '?') + 'api=' + encodeURIComponent(apiBase()) : '');
+  location.href = 'download.html' + (lastUrl ? '?url=' + encodeURIComponent(lastUrl) + '&quality=' + encodeURIComponent(lastQuality) : '');
 };
 </script>
 </body>

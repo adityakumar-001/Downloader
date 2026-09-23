@@ -100,16 +100,54 @@
   <footer>Sirf apne ya copyright-free videos download karo. ⚖️</footer>
 </div>
 
+<!-- IN-BUILD API: docs/config.js se aata hai, user ko kuch nahi karna -->
+<script src="./config.js"></script>
 <script>
-// API base: ?api= override > saved setting > same origin
-(function initApi() {
-  try {
-    const p = new URLSearchParams(location.search).get('api');
-    if (p) localStorage.setItem('vd_api_base', p.replace(/\/+$/, ''));
-  } catch {}
-})();
-const apiBase = () => { try { return (localStorage.getItem('vd_api_base') || '').replace(/\/+$/, ''); } catch { return ''; } };
-const api = (path) => apiBase() + path;
+// ZERO-CONFIG API (in-build) — ?api= > saved > config.js DEFAULT > same-origin
+const DEFAULT_API = ((typeof window.VD_DEFAULT_API === 'string' ? window.VD_DEFAULT_API : '') || '').trim().replace(/\/+$/, '');
+const getQueryApi = () => { try { return (new URLSearchParams(location.search).get('api') || '').trim().replace(/\/+$/, ''); } catch { return ''; } };
+const getSavedApi = () => { try { return (localStorage.getItem('vd_api_base') || '').trim().replace(/\/+$/, ''); } catch { return ''; } };
+let ACTIVE_API = getQueryApi() || getSavedApi() || DEFAULT_API || '';
+try { if (getQueryApi()) localStorage.setItem('vd_api_base', getQueryApi()); } catch {}
+const apiBase = () => ACTIVE_API;
+const api = (path) => ACTIVE_API + path;
+
+function apiCandidates(path) {
+  const list = [ACTIVE_API + path];
+  if (DEFAULT_API && DEFAULT_API !== ACTIVE_API) list.push(DEFAULT_API + path);
+  if (ACTIVE_API !== '') list.push(path);
+  return [...new Set(list)];
+}
+async function apiPostInfo(url) {
+  let lastErr = null;
+  for (const u of apiCandidates('/api/info')) {
+    try {
+      const r = await fetch(u, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) { ACTIVE_API = u.replace(/\/api\/info$/, ''); return d; }
+      lastErr = new Error(d.error || ('Server error (' + r.status + ')'));
+      if (r.status === 400 || r.status === 404) throw lastErr;
+    } catch (e) { lastErr = e; if (e && /^(Sahi video|Ye video|Ye link)/.test(e.message)) throw e; }
+  }
+  throw lastErr || new Error('Server se connect nahi ho paya');
+}
+async function apiGetDownload(url, q) {
+  let lastErr = null;
+  for (const u of apiCandidates('/api/download')) {
+    try {
+      const full = u + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
+      const r = await fetch(full);
+      if (r.ok) { ACTIVE_API = u.replace(/\/api\/download$/, ''); return r; }
+      const t = await r.text().catch(() => '');
+      lastErr = new Error(t || 'Download fail ho gaya');
+      if (r.status === 400 || r.status === 404) throw lastErr;
+    } catch (e) { lastErr = e; if (e && /^(Sahi video)/.test(e.message)) throw e; }
+  }
+  throw lastErr || new Error('Download fail ho gaya');
+}
 
 const $ = (id) => document.getElementById(id);
 const urlInput = $('url'), msg = $('msg'), vbox = $('vbox'),
@@ -119,13 +157,9 @@ const urlInput = $('url'), msg = $('msg'), vbox = $('vbox'),
 
 function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
 
-// GitHub Pages / file se khola ho aur backend set na ho to hint dikhao
+// Backend fail hint (in-build — user setting nahi)
 function apiHint() {
-  try {
-    const h = location.hostname || '';
-    if (!apiBase() && (h.endsWith('github.io') || location.protocol === 'file:'))
-      return ' 💡 GitHub Pages par sirf website hai — download ke liye backend URL chahiye (?api=YOUR_BACKEND ya index page ki ⚙️ setting).';
-  } catch {}
+  if (!DEFAULT_API && !ACTIVE_API) return ' 💡 Backend abhi set nahi hai.';
   return '';
 }
 
@@ -149,14 +183,9 @@ async function downloadNow() {
   $('dlBtn').disabled = true;
   vbox.classList.remove('show');
   try {
-    // STEP 1: /api/info (backend: server.js -> yt-dlp)
+    // STEP 1: /api/info (in-build backend, auto-fallback)
     setMsg('<span class="spinner"></span>Video info li ja rahi hai...', 'load');
-    const infoRes = await fetch(api('/api/info'), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    const d = await infoRes.json();
-    if (!infoRes.ok) throw new Error(d.error || 'Info nahi mili');
+    const d = await apiPostInfo(url);
 
     const q = rebuildQualities(d.qualities, q0);
     vtitle.textContent = d.title || 'Video';
@@ -168,14 +197,13 @@ async function downloadNow() {
     else thumb.style.display = 'none';
     vbox.classList.add('show');
 
-    // STEP 2: /api/download (backend: server.js -> yt-dlp + ffmpeg)
+    // STEP 2: /api/download (in-build backend, auto-fallback)
     dlmsg.className = 'msg load';
     dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... page band mat karo ⏳';
     dprogress.style.display = 'block'; dbar.style.width = '10%';
     setMsg('✅ Video mil gaya! Download ho raha hai...', 'ok');
 
-    const r = await fetch(api('/api/download') + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q));
-    if (!r.ok) throw new Error(await r.text() || 'Download fail ho gaya');
+    const r = await apiGetDownload(url, q);
 
     let fname = 'video' + (q === 'audio' ? '.mp3' : '.mp4');
     const cd = r.headers.get('Content-Disposition');
