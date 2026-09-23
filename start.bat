@@ -31,12 +31,16 @@ if not exist "node_modules" (
   echo [1/3] Dependencies OK.
 )
 
-REM 3) Backend start hone ke 3 sec baad browser me frontend kholo
-echo [2/3] Browser me khola ja raha hai: http://localhost:3000
-start "" cmd /c "timeout /t 3 /nobreak >nul & start "" http://localhost:3000"
+REM 3) Server UP hone ke baad hi browser kholo (15 sec tak wait, phir kholo)
+echo [2/3] Server ready hote hi browser khulega: http://localhost:3000
+start "" powershell -NoProfile -Command "$u='http://localhost:3000/'; for($i=0;$i -lt 15;$i++){ try { $r=Invoke-WebRequest -Uri ($u+'api/health') -TimeoutSec 2 -UseBasicParsing; if($r.StatusCode -eq 200){ break } } catch {}; Start-Sleep -Seconds 1 }; Start-Process $u"
 
 echo [3/3] Backend start ho raha hai (server.js)...
 echo Band karne ke liye: Ctrl+C dabao
+echo (Ye kaali window khuli rahegi - ise band mat karo!)
 echo.
 call npm start
+echo.
+echo [STOP] Server band ho gaya (exit code: %errorlevel%).
+echo Dobara chalane ke liye ye file phir se kholo.
 pause

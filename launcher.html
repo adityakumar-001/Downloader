@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Video Downloader — Launcher</title>
+<!-- Server ON ho tabhi redirect hoga (band ho to yehi page par help dikhegi) -->
+<style>
+  body { font-family: system-ui, sans-serif; background: #14122b; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
+  .box { max-width: 480px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); border-radius: 16px; padding: 28px; }
+  .logo { font-size: 48px; }
+  h1 { font-size: 22px; margin: 10px 0; }
+  p { font-size: 14px; opacity: .9; line-height: 1.7; }
+  a { color: #ffd166; }
+  .btn { display: inline-block; margin-top: 14px; padding: 12px 24px; border-radius: 10px; background: linear-gradient(90deg,#ff6a00,#ee0979); color: #fff; text-decoration: none; font-weight: 700; }
+  code { background: rgba(0,0,0,.5); padding: 2px 8px; border-radius: 6px; font-size: 13px; }
+  #status { margin-top: 12px; font-size: 13px; opacity: .8; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">📥</div>
+  <h1>Video Downloader khul raha hai...</h1>
+  <p>App khul rahi hai: <a href="http://localhost:3000/">http://localhost:3000</a></p>
+  <a class="btn" id="openBtn" href="http://localhost:3000/">▶️ App Kholo</a>
+  <div><button class="btn" id="retryBtn" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);margin-top:10px;cursor:pointer;">🔄 Dobara check karo</button></div>
+  <div id="status">🔄 Server check ho raha hai...</div>
+  <p id="help" style="display:none; margin-top:14px;">🔴 Server band lag raha hai.<br/>Pehle <code>start.bat</code> par double-click karo (kaali window khuli rahegi),<br/>phir wapas aakar <b>Dobara check karo</b> dabao.</p>
+</div>
+<script>
+  // Pehle server check karo, ON ho tabhi redirect — warna yehi page par help dikhao
+  var APP = 'http://localhost:3000/';
+  var tries = 0;
+  async function checkOnce() {
+    try {
+      var ctrl = new AbortController();
+      var t = setTimeout(function () { ctrl.abort(); }, 3000);
+      var r = await fetch(APP + 'api/health', { signal: ctrl.signal });
+      clearTimeout(t);
+      return r.ok;
+    } catch (e) { return false; }
+  }
+  async function check(autoGo) {
+    var el = document.getElementById('status');
+    var help = document.getElementById('help');
+    el.textContent = '🔄 Server check ho raha hai... (koshish ' + (tries + 1) + ')';
+    var ok = await checkOnce();
+    if (ok) {
+      el.textContent = '🟢 Server chal raha hai — app khul rahi hai...';
+      setTimeout(function () { location.replace(APP + location.search + location.hash); }, 600);
+    } else {
+      tries++;
+      if (autoGo && tries < 15) { setTimeout(function () { check(true); }, 2000); return; }
+      el.textContent = '🔴 Server band hai — neeche steps follow karo.';
+      help.style.display = 'block';
+    }
+  }
+  document.getElementById('retryBtn').onclick = function () { tries = 0; document.getElementById('help').style.display = 'none'; check(false); };
+  check(true); // khulte hi 30 sec tak auto-retry (server start ho raha ho to pakad lega)
+</script>
+</body>
+</html>
