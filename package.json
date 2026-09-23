@@ -1,7 +1,7 @@
 {
   "name": "video-downloader",
-  "version": "1.0.0",
-  "description": "Link paste karo, video download karo - no login, no length limit",
+  "version": "1.1.0",
+  "description": "Link paste karo, 4K tak video+audio download karo - no login, no length limit",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

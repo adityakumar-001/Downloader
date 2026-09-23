@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Temp downloads (yt-dlp merge files)
+temp/
+dl_*.mp4
+dl_*.mp3
+dl_*.webm
+dl_*.mkv
+*.part
+*.ytdl
+
+# Env / logs / OS
+.env
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

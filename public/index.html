@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Universal Video Downloader</title>
-<meta name="description" content="Sirf link paste karo aur video download karo. Koi login nahi, koi length limit nahi." />
+<title>Universal Video Downloader — 4K Video + Audio</title>
+<meta name="description" content="Link paste karo, 4K tak video+audio download karo. No login, no length limit. YouTube, Instagram, Facebook, TikTok, X, Vimeo supported." />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -21,6 +21,7 @@
   .badges { display: flex; gap: 8px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
   .badge { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
   .badge.green { background: rgba(0,255,150,.15); border-color: rgba(0,255,150,.4); }
+  .badge.gold { background: rgba(255,200,0,.15); border-color: rgba(255,200,0,.45); }
   .card {
     background: rgba(255,255,255,.07); backdrop-filter: blur(12px);
     border: 1px solid rgba(255,255,255,.15); border-radius: 18px;
@@ -28,11 +29,11 @@
   }
   label { font-size: 14px; opacity: .9; display: block; margin-bottom: 8px; }
   .row { display: flex; gap: 10px; }
-  input[type=url] {
+  input[type=url], input[type=text] {
     flex: 1; padding: 14px 16px; border-radius: 12px; border: 2px solid rgba(255,255,255,.2);
     background: rgba(0,0,0,.35); color: #fff; font-size: 15px; outline: none; min-width: 0;
   }
-  input[type=url]:focus { border-color: #ff6a00; }
+  input[type=url]:focus, input[type=text]:focus { border-color: #ff6a00; }
   button {
     padding: 14px 22px; border: none; border-radius: 12px; cursor: pointer;
     font-size: 15px; font-weight: 700; color: #fff;
@@ -42,8 +43,9 @@
   button:active { transform: scale(.97); }
   button:disabled { opacity: .5; cursor: wait; }
   button.secondary { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
+  button.small { padding: 8px 14px; font-size: 13px; }
   .paste-btn { padding: 14px 14px; }
-  .msg { margin-top: 12px; font-size: 14px; min-height: 20px; }
+  .msg { margin-top: 12px; font-size: 14px; min-height: 20px; word-break: break-word; }
   .msg.err { color: #ff8080; } .msg.ok { color: #7dffb0; } .msg.load { color: #ffd166; }
   .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation: spin 0.7s linear infinite; vertical-align: -2px; margin-right:6px;}
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -64,6 +66,11 @@
   #dbar { height: 100%; width: 0%; background: linear-gradient(90deg,#00ff96,#00b8ff); transition: width .2s; }
   .sites { display: grid; grid-template-columns: repeat(auto-fill,minmax(100px,1fr)); gap: 8px; margin-top: 14px; }
   .site { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); text-align:center; padding:10px 6px; border-radius:10px; font-size:13px; }
+  .links { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .links a { color: #ffd166; font-size: 13px; text-decoration: none; border-bottom: 1px dotted #ffd166; }
+  details.api { margin-top: 12px; font-size: 13px; opacity: .9; }
+  details.api summary { cursor: pointer; color: #ffd166; }
+  details.api code { display: block; background: rgba(0,0,0,.45); padding: 10px; border-radius: 8px; margin-top: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
   footer { text-align:center; opacity:.55; font-size:12px; margin:24px 0 10px; line-height:1.7;}
   @media (max-width:520px){ .row{flex-direction:column;} button{width:100%;} h1{font-size:24px;} .vrow{flex-direction:column;} #thumb{width:100%;max-width:100%;} }
 </style>
@@ -73,17 +80,16 @@
   <header>
     <div class="logo">📥</div>
     <h1><span>Video Downloader</span></h1>
-    <p class="sub">Just paste the link and download the video.<br/>No matter how long the video is — no login required.✅</p>
+    <p class="sub">Link paste karo — <b>4K tak Video + Audio</b> download karo.<br/>No login ✅ No length limit ✅ 100% free ✅</p>
     <div class="badges">
       <span class="badge green">🔓 No Login</span>
+      <span class="badge gold">🎬 4K Ultra HD</span>
+      <span class="badge green">🔊 Video + Audio Merged</span>
       <span class="badge green">♾️ No Length Limit</span>
-      <span class="badge green">🆓 100% Free</span>
     </div>
   </header>
 
-  <!-- LAYER 1 (Browser): HTML + CSS + JS — yehi file -->
-  <!-- LAYER 2 (Local Backend): neeche wala JS fetch() se server.js (/api/*) ko bulata hai -->
-  <!-- LAYER 3 (BAT + yt-dlp): start.bat -> `npm start` -> server.js -> yt-dlp.exe + ffmpeg se download -->
+  <!-- LAYER 1 (Browser): yehi file — LAYER 2 (Backend): neeche wala JS server.js (/api/*) ko bulata hai -->
   <div class="card">
     <label for="url">🎬 Video ka link yahan paste karo:</label>
     <div class="row">
@@ -91,8 +97,10 @@
       <button class="secondary paste-btn" id="pasteBtn" title="Clipboard se paste karo">📋</button>
     </div>
     <div class="qrow">
-      <select id="quality">
-        <option value="best">Best Quality ⭐</option>
+      <select id="quality" title="Quality chuno (video+audio merged milega)">
+        <option value="best">Best Quality ⭐ (up to 4K)</option>
+        <option value="2160">2160p 4K Ultra HD</option>
+        <option value="1440">1440p 2K Quad HD</option>
         <option value="1080">1080p Full HD</option>
         <option value="720" selected>720p HD</option>
         <option value="480">480p</option>
@@ -113,30 +121,56 @@
       </div>
       <div id="dprogress"><div id="dbar"></div></div>
       <div class="msg" id="dlmsg"></div>
+      <div class="links">
+        <a href="#" id="shareLink">🔗 Share / direct download link copy karo</a>
+        <a href="download.html" id="openDlPage">↗️ Download page kholo</a>
+      </div>
     </div>
+
+    <details class="api">
+      <summary>⚙️ API / Server setting (GitHub Pages ya alag server se chala rahe ho to)</summary>
+      <div class="row" style="margin-top:10px;">
+        <input id="apiBase" type="text" placeholder="https://aapka-server.com (khaali = yahi server)" />
+        <button class="secondary small" id="saveApi">Save</button>
+      </div>
+      <code>GET /api/health
+POST /api/info  {"url":"https://..."}
+GET  /api/download?url=...&amp;quality=2160|1440|1080|720|480|360|best|audio
+Share page: download.html?url=...&amp;quality=720</code>
+    </details>
   </div>
 
   <div class="card">
     <b>✅ Which sites will work?</b>
     <div class="sites">
-      <div class="site">▶️ YouTube</div>
+      <div class="site">▶️ YouTube (4K)</div>
       <div class="site">📸 Instagram</div>
       <div class="site">📘 Facebook</div>
       <div class="site">🎵 TikTok</div>
       <div class="site">🐦 X / Twitter</div>
       <div class="site">🎞️ Vimeo</div>
       <div class="site">📺 Dailymotion</div>
-
     </div>
+    <p style="font-size:12px; opacity:.7; margin-top:10px;">💡 4K sirf un videos me milega jo 4K me upload hue hain. Har quality me <b>video + audio merged MP4</b> milta hai (faststart ke saath — turant play hoga).</p>
   </div>
 
-  <footer style="font-size: 20px;">
-    <b> Public videos ke liye hai. Private/login wale videos download nahi honge.<br/>
+  <footer>
+    <b>Public videos ke liye hai. Private/login wale videos download nahi honge.<br/>
     Sirf apne ya copyright-free videos download karo. ⚖️</b>
   </footer>
 </div>
 
 <script>
+// API base: ?api=https://server — ya saved setting — ya khaali (same origin)
+(function initApi() {
+  try {
+    const p = new URLSearchParams(location.search).get('api');
+    if (p) localStorage.setItem('vd_api_base', p.replace(/\/+$/, ''));
+  } catch {}
+})();
+const apiBase = () => { try { return (localStorage.getItem('vd_api_base') || '').replace(/\/+$/, ''); } catch { return ''; } };
+const api = (path) => apiBase() + path;
+
 const $ = (id) => document.getElementById(id);
 const urlInput = $('url'), msg = $('msg'), result = $('result'),
       thumb = $('thumb'), vtitle = $('vtitle'), vmeta = $('vmeta'),
@@ -144,6 +178,13 @@ const urlInput = $('url'), msg = $('msg'), result = $('result'),
       dprogress = $('dprogress'), dbar = $('dbar');
 
 function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
+
+// Settings
+$('apiBase').value = apiBase();
+$('saveApi').onclick = () => {
+  try { localStorage.setItem('vd_api_base', $('apiBase').value.trim().replace(/\/+$/, '')); } catch {}
+  setMsg('✅ API server save ho gaya: ' + (apiBase() || 'yahi server (same origin)'), 'ok');
+};
 
 // Paste button
 $('pasteBtn').onclick = async () => {
@@ -157,48 +198,68 @@ $('pasteBtn').onclick = async () => {
 // Enter dabane par bhi Download Now chale
 urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('dlBtn').click(); });
 
-// DOWNLOAD NOW (single button):
-//   1) HTML -> POST /api/info (server.js) -> video title, size, thumbnail lao
-//   2) HTML -> GET /api/download (server.js -> yt-dlp + ffmpeg) -> file save karo
+// Quality dropdown ko server ki asli list se rebuild karo (size + 4K samet)
+function rebuildQualities(list, prev) {
+  if (!Array.isArray(list) || !list.length) return;
+  quality.innerHTML = '';
+  for (const q of list) {
+    const o = document.createElement('option');
+    o.value = q.id; o.textContent = q.label || q.id;
+    quality.appendChild(o);
+  }
+  const keep = list.some((q) => q.id === prev) ? prev : (list.some((q) => q.id === '720') ? '720' : list[0].id);
+  quality.value = keep;
+}
+
+// DOWNLOAD NOW:
+//   1) POST api()/api/info -> title, thumbnail, asli qualities (4K detect)
+//   2) GET  api()/api/download -> merged MP4/MP3 save karo
+let lastUrl = '', lastQuality = '720';
 $('dlBtn').onclick = async () => {
   const url = urlInput.value.trim();
   if (!url || !/^https?:\/\//i.test(url)) { setMsg('❌ Pehle sahi video link paste karo (https:// se shuru hona chahiye).', 'err'); return; }
-  const q = quality.value || 'best';
+  const q0 = quality.value || '720';
+  lastUrl = url;
   $('dlBtn').disabled = true;
   result.classList.remove('show');
   dlmsg.textContent = '';
   try {
-    // STEP 1: info nikalo (backend: server.js -> yt-dlp)
-    setMsg('<span class="spinner"></span>Video dhoonda ja raha hai... (lambi video me 10-20 sec lag sakta hai)', 'load');
-    const infoRes = await fetch('/api/info', {
+    // STEP 1: info nikalo
+    setMsg('<span class="spinner"></span>Video dhoonda ja raha hai... (4K/lambi video me 10-20 sec lag sakta hai)', 'load');
+    const infoRes = await fetch(api('/api/info'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
     });
     const d = await infoRes.json();
     if (!infoRes.ok) throw new Error(d.error || 'Info nahi mili');
 
-    // Info card dikhao: title + duration + andazan size
+    // Asli qualities dropdown me bharo
+    rebuildQualities(d.qualities, q0);
+    const q = quality.value || q0;
+    lastQuality = q;
+
+    // Info card: title + duration + size + 4K badge
     vtitle.textContent = d.title || 'Video';
     const mine = (d.qualities || []).find((x) => x.id === q);
+    const badge4k = (d.maxHeight && d.maxHeight >= 2000) ? '  •  🎬 4K available' : '';
     vmeta.textContent = (d.uploader ? '👤 ' + d.uploader + '  •  ' : '') + '⏱️ ' + (d.durationText || '')
-      + ((mine && mine.sizeText) ? '  •  📦 ~' + mine.sizeText : '');
+      + ((mine && mine.sizeText) ? '  •  📦 ~' + mine.sizeText : '') + badge4k;
     if (d.thumbnail) { thumb.src = d.thumbnail; thumb.style.display = 'block'; }
     else thumb.style.display = 'none';
     result.classList.add('show');
     setMsg('✅ Video mil gaya! Download ho raha hai...', 'ok');
 
-    // STEP 2: download karo (backend: server.js -> yt-dlp + ffmpeg -> BAT se chalta server)
+    // STEP 2: download karo (video+audio merged MP4 / MP3)
     dlmsg.className = 'msg load';
-    dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... bada video ho to time lagega, page band mat karo ⏳';
+    dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... 4K/bada video ho to time lagega, page band mat karo ⏳';
     dprogress.style.display = 'block'; dbar.style.width = '10%';
 
-    const apiUrl = '/api/download?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
+    const apiUrl = api('/api/download') + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
     const r = await fetch(apiUrl);
     if (!r.ok) {
       const t = await r.text();
       throw new Error(t || 'Download fail ho gaya');
     }
-    // Filename nikalo
     let fname = 'video' + (q === 'audio' ? '.mp3' : '.mp4');
     const cd = r.headers.get('Content-Disposition');
     if (cd) {
@@ -233,6 +294,24 @@ $('dlBtn').onclick = async () => {
     $('dlBtn').disabled = false;
     setTimeout(() => { dprogress.style.display = 'none'; dbar.style.width = '0%'; }, 3000);
   }
+};
+
+// Share link: download.html?url=...&quality=... copy karo
+$('shareLink').onclick = (e) => {
+  e.preventDefault();
+  if (!lastUrl) return;
+  const link = location.origin + location.pathname.replace(/[^/]*$/, '') + 'download.html?url='
+    + encodeURIComponent(lastUrl) + '&quality=' + encodeURIComponent(lastQuality)
+    + (apiBase() ? '&api=' + encodeURIComponent(apiBase()) : '');
+  (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(
+    () => { dlmsg.className = 'msg ok'; dlmsg.textContent = '🔗 Share link copy ho gaya: ' + link; },
+    () => { dlmsg.className = 'msg load'; dlmsg.textContent = '🔗 Share link: ' + link; }
+  );
+};
+$('openDlPage').onclick = (e) => {
+  e.preventDefault();
+  const base = 'download.html' + (lastUrl ? '?url=' + encodeURIComponent(lastUrl) + '&quality=' + encodeURIComponent(lastQuality) : '');
+  location.href = base + (apiBase() ? (base.includes('?') ? '&' : '?') + 'api=' + encodeURIComponent(apiBase()) : '');
 };
 </script>
 </body>

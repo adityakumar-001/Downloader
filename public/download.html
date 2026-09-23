@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Download — Universal Video Downloader</title>
+<meta name="description" content="Share kiye gaye video link ko 4K tak video+audio me download karo. Download API se linked page." />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh; color: #fff; padding: 20px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header { text-align: center; padding: 24px 0 8px; }
+  h1 { font-size: 26px; }
+  h1 span { background: linear-gradient(90deg,#ff6a00,#ee0979); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { opacity: .8; font-size: 14px; margin-top: 6px; }
+  .card {
+    background: rgba(255,255,255,.07); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.15); border-radius: 18px;
+    padding: 24px; margin-top: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  label { font-size: 14px; opacity: .9; display: block; margin-bottom: 8px; }
+  .row { display: flex; gap: 10px; }
+  input[type=url] {
+    flex: 1; padding: 14px 16px; border-radius: 12px; border: 2px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.35); color: #fff; font-size: 15px; outline: none; min-width: 0;
+  }
+  input[type=url]:focus { border-color: #ff6a00; }
+  button {
+    padding: 14px 22px; border: none; border-radius: 12px; cursor: pointer;
+    font-size: 15px; font-weight: 700; color: #fff;
+    background: linear-gradient(90deg,#ff6a00,#ee0979); transition: transform .1s;
+    white-space: nowrap;
+  }
+  button:active { transform: scale(.97); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .msg { margin-top: 12px; font-size: 14px; min-height: 20px; word-break: break-word; }
+  .msg.err { color: #ff8080; } .msg.ok { color: #7dffb0; } .msg.load { color: #ffd166; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation: spin 0.7s linear infinite; vertical-align: -2px; margin-right:6px;}
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #vbox { display: none; margin-top: 16px; background: rgba(0,0,0,.3); border-radius: 14px; padding: 16px; border: 1px solid rgba(255,255,255,.12); }
+  #vbox.show { display: block; }
+  #thumb { width: 100%; border-radius: 10px; display: none; margin-bottom: 10px; }
+  #vtitle { font-size: 16px; font-weight: 600; word-break: break-word; }
+  #vmeta { font-size: 13px; opacity: .75; margin-top: 6px; }
+  .qrow { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  select {
+    flex: 1; min-width: 160px; padding: 12px; border-radius: 10px; font-size: 14px;
+    background: rgba(0,0,0,.4); color: #fff; border: 1px solid rgba(255,255,255,.25); outline: none;
+  }
+  select option { color: #000; }
+  #dprogress { display:none; margin-top:12px; background: rgba(255,255,255,.12); border-radius: 10px; height: 10px; overflow: hidden; }
+  #dbar { height: 100%; width: 0%; background: linear-gradient(90deg,#00ff96,#00b8ff); transition: width .2s; }
+  .back { display: inline-block; margin-top: 16px; color: #ffd166; font-size: 14px; text-decoration: none; }
+  footer { text-align:center; opacity:.55; font-size:12px; margin:24px 0 10px; line-height:1.7;}
+  @media (max-width:520px){ .row{flex-direction:column;} button{width:100%;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⬇️ <span>Download Video</span></h1>
+    <p class="sub">Ye page <b>Download API</b> (<code>/api/info</code> + <code>/api/download</code>) se linked hai.<br/>Link: <code>download.html?url=VIDEO_LINK&amp;quality=720</code></p>
+  </header>
+
+  <div class="card">
+    <label for="url">🎬 Video link:</label>
+    <div class="row">
+      <input id="url" type="url" placeholder="https://..." autocomplete="off" />
+    </div>
+    <div class="qrow">
+      <select id="quality" title="Quality (video+audio merged)">
+        <option value="best">Best Quality ⭐ (up to 4K)</option>
+        <option value="2160">2160p 4K Ultra HD</option>
+        <option value="1440">1440p 2K Quad HD</option>
+        <option value="1080">1080p Full HD</option>
+        <option value="720" selected>720p HD</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+        <option value="audio">Audio only (MP3)</option>
+      </select>
+      <button id="dlBtn" style="flex:1;">⬇️ Download</button>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <div id="vbox">
+      <img id="thumb" alt="thumbnail" />
+      <div id="vtitle"></div>
+      <div id="vmeta"></div>
+      <div id="dprogress"><div id="dbar"></div></div>
+      <div class="msg" id="dlmsg"></div>
+    </div>
+
+    <a class="back" href="index.html">← Back to Video Downloader</a>
+  </div>
+
+  <footer>Sirf apne ya copyright-free videos download karo. ⚖️</footer>
+</div>
+
+<script>
+// API base: ?api= override > saved setting > same origin
+(function initApi() {
+  try {
+    const p = new URLSearchParams(location.search).get('api');
+    if (p) localStorage.setItem('vd_api_base', p.replace(/\/+$/, ''));
+  } catch {}
+})();
+const apiBase = () => { try { return (localStorage.getItem('vd_api_base') || '').replace(/\/+$/, ''); } catch { return ''; } };
+const api = (path) => apiBase() + path;
+
+const $ = (id) => document.getElementById(id);
+const urlInput = $('url'), msg = $('msg'), vbox = $('vbox'),
+      thumb = $('thumb'), vtitle = $('vtitle'), vmeta = $('vmeta'),
+      quality = $('quality'), dlmsg = $('dlmsg'),
+      dprogress = $('dprogress'), dbar = $('dbar');
+
+function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
+
+function rebuildQualities(list, prev) {
+  if (!Array.isArray(list) || !list.length) return prev;
+  quality.innerHTML = '';
+  for (const q of list) {
+    const o = document.createElement('option');
+    o.value = q.id; o.textContent = q.label || q.id;
+    quality.appendChild(o);
+  }
+  const keep = list.some((q) => q.id === prev) ? prev : (list.some((q) => q.id === '720') ? '720' : list[0].id);
+  quality.value = keep;
+  return keep;
+}
+
+async function downloadNow() {
+  const url = urlInput.value.trim();
+  if (!url || !/^https?:\/\//i.test(url)) { setMsg('❌ Sahi video link do (https://...)', 'err'); return; }
+  const q0 = quality.value || '720';
+  $('dlBtn').disabled = true;
+  vbox.classList.remove('show');
+  try {
+    // STEP 1: /api/info (backend: server.js -> yt-dlp)
+    setMsg('<span class="spinner"></span>Video info li ja rahi hai...', 'load');
+    const infoRes = await fetch(api('/api/info'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const d = await infoRes.json();
+    if (!infoRes.ok) throw new Error(d.error || 'Info nahi mili');
+
+    const q = rebuildQualities(d.qualities, q0);
+    vtitle.textContent = d.title || 'Video';
+    const mine = (d.qualities || []).find((x) => x.id === q);
+    const badge4k = (d.maxHeight && d.maxHeight >= 2000) ? '  •  🎬 4K available' : '';
+    vmeta.textContent = (d.uploader ? '👤 ' + d.uploader + '  •  ' : '') + '⏱️ ' + (d.durationText || '')
+      + ((mine && mine.sizeText) ? '  •  📦 ~' + mine.sizeText : '') + badge4k;
+    if (d.thumbnail) { thumb.src = d.thumbnail; thumb.style.display = 'block'; }
+    else thumb.style.display = 'none';
+    vbox.classList.add('show');
+
+    // STEP 2: /api/download (backend: server.js -> yt-dlp + ffmpeg)
+    dlmsg.className = 'msg load';
+    dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... page band mat karo ⏳';
+    dprogress.style.display = 'block'; dbar.style.width = '10%';
+    setMsg('✅ Video mil gaya! Download ho raha hai...', 'ok');
+
+    const r = await fetch(api('/api/download') + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q));
+    if (!r.ok) throw new Error(await r.text() || 'Download fail ho gaya');
+
+    let fname = 'video' + (q === 'audio' ? '.mp3' : '.mp4');
+    const cd = r.headers.get('Content-Disposition');
+    if (cd) {
+      const m = cd.match(/filename\*=UTF-8''(.+)/) || cd.match(/filename="(.+)"/);
+      if (m) fname = decodeURIComponent(m[1]);
+    }
+    const total = +(r.headers.get('Content-Length') || 0);
+    const reader = r.body.getReader();
+    const chunks = [];
+    let got = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); got += value.length;
+      dbar.style.width = total ? Math.min(99, (got / total) * 100) + '%' : Math.min(95, got / 500000) + '%';
+    }
+    dbar.style.width = '100%';
+    const blob = new Blob(chunks, { type: q === 'audio' ? 'audio/mpeg' : 'video/mp4' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    dlmsg.className = 'msg ok';
+    dlmsg.textContent = '✅ Download ho gaya! File check karo: ' + fname;
+  } catch (e) {
+    setMsg('❌ ' + e.message, 'err');
+    vbox.classList.add('show');
+    dlmsg.className = 'msg err';
+    dlmsg.textContent = '❌ ' + e.message;
+  } finally {
+    $('dlBtn').disabled = false;
+    setTimeout(() => { dprogress.style.display = 'none'; dbar.style.width = '0%'; }, 3000);
+  }
+}
+
+$('dlBtn').onclick = downloadNow;
+urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') downloadNow(); });
+
+// ?url= & ?quality= se prefill + auto-start
+(function boot() {
+  try {
+    const p = new URLSearchParams(location.search);
+    const u = p.get('url'), q = p.get('quality');
+    if (u) urlInput.value = u;
+    if (q) quality.value = q;
+    if (u && p.get('auto') !== '0') downloadNow();
+  } catch {}
+})();
+</script>
+</body>
+</html>
