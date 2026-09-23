@@ -1,0 +1,11 @@
+# Render Blueprint — Video Downloader Backend
+# Render Dashboard → New + → Blueprint → ye repo select karo. Bas.
+services:
+  - type: web
+    name: video-downloader
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
