@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Universal Video Downloader</title>
+<meta name="description" content="Sirf link paste karo aur video download karo. Koi login nahi, koi length limit nahi." />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh; color: #fff; padding: 20px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { text-align: center; padding: 30px 0 10px; }
+  header .logo { font-size: 52px; }
+  h1 { font-size: 30px; margin: 8px 0 4px; }
+  h1 span { background: linear-gradient(90deg,#ff6a00,#ee0979); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { opacity: .85; font-size: 15px; }
+  .badges { display: flex; gap: 8px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); padding: 4px 12px; border-radius: 20px; font-size: 12px; }
+  .badge.green { background: rgba(0,255,150,.15); border-color: rgba(0,255,150,.4); }
+  .card {
+    background: rgba(255,255,255,.07); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.15); border-radius: 18px;
+    padding: 24px; margin-top: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  label { font-size: 14px; opacity: .9; display: block; margin-bottom: 8px; }
+  .row { display: flex; gap: 10px; }
+  input[type=url] {
+    flex: 1; padding: 14px 16px; border-radius: 12px; border: 2px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.35); color: #fff; font-size: 15px; outline: none; min-width: 0;
+  }
+  input[type=url]:focus { border-color: #ff6a00; }
+  button {
+    padding: 14px 22px; border: none; border-radius: 12px; cursor: pointer;
+    font-size: 15px; font-weight: 700; color: #fff;
+    background: linear-gradient(90deg,#ff6a00,#ee0979); transition: transform .1s;
+    white-space: nowrap;
+  }
+  button:active { transform: scale(.97); }
+  button:disabled { opacity: .5; cursor: wait; }
+  button.secondary { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
+  .paste-btn { padding: 14px 14px; }
+  .msg { margin-top: 12px; font-size: 14px; min-height: 20px; }
+  .msg.err { color: #ff8080; } .msg.ok { color: #7dffb0; } .msg.load { color: #ffd166; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation: spin 0.7s linear infinite; vertical-align: -2px; margin-right:6px;}
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #result { display: none; margin-top: 18px; background: rgba(0,0,0,.3); border-radius: 14px; padding: 16px; border: 1px solid rgba(255,255,255,.12); }
+  #result.show { display: block; }
+  .vrow { display: flex; gap: 14px; align-items: flex-start; }
+  #thumb { width: 180px; max-width: 40%; border-radius: 10px; display: none; }
+  .vinfo { flex: 1; min-width: 0; }
+  #vtitle { font-size: 16px; font-weight: 600; word-break: break-word; }
+  #vmeta { font-size: 13px; opacity: .75; margin-top: 6px; }
+  .qrow { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  select {
+    flex: 1; min-width: 160px; padding: 12px; border-radius: 10px; font-size: 14px;
+    background: rgba(0,0,0,.4); color: #fff; border: 1px solid rgba(255,255,255,.25); outline: none;
+  }
+  select option { color: #000; }
+  #dprogress { display:none; margin-top:12px; background: rgba(255,255,255,.12); border-radius: 10px; height: 10px; overflow: hidden; }
+  #dbar { height: 100%; width: 0%; background: linear-gradient(90deg,#00ff96,#00b8ff); transition: width .2s; }
+  .sites { display: grid; grid-template-columns: repeat(auto-fill,minmax(100px,1fr)); gap: 8px; margin-top: 14px; }
+  .site { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); text-align:center; padding:10px 6px; border-radius:10px; font-size:13px; }
+  footer { text-align:center; opacity:.55; font-size:12px; margin:24px 0 10px; line-height:1.7;}
+  @media (max-width:520px){ .row{flex-direction:column;} button{width:100%;} h1{font-size:24px;} .vrow{flex-direction:column;} #thumb{width:100%;max-width:100%;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">📥</div>
+    <h1><span>Video Downloader</span></h1>
+    <p class="sub">Just paste the link and download the video.<br/>No matter how long the video is — no login required.✅</p>
+    <div class="badges">
+      <span class="badge green">🔓 No Login</span>
+      <span class="badge green">♾️ No Length Limit</span>
+      <span class="badge green">🆓 100% Free</span>
+    </div>
+  </header>
+
+  <!-- LAYER 1 (Browser): HTML + CSS + JS — yehi file -->
+  <!-- LAYER 2 (Local Backend): neeche wala JS fetch() se server.js (/api/*) ko bulata hai -->
+  <!-- LAYER 3 (BAT + yt-dlp): start.bat -> `npm start` -> server.js -> yt-dlp.exe + ffmpeg se download -->
+  <div class="card">
+    <label for="url">🎬 Video ka link yahan paste karo:</label>
+    <div class="row">
+      <input id="url" type="url" placeholder="https://youtube.com/watch?v=... ya Instagram / TikTok / FB link..." autocomplete="off" />
+      <button class="secondary paste-btn" id="pasteBtn" title="Clipboard se paste karo">📋</button>
+    </div>
+    <div class="qrow">
+      <select id="quality">
+        <option value="best">Best Quality ⭐</option>
+        <option value="1080">1080p Full HD</option>
+        <option value="720" selected>720p HD</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+        <option value="audio">Audio only (MP3)</option>
+      </select>
+      <button id="dlBtn" style="flex:1;">⬇️ Download Now</button>
+    </div>
+    <div class="msg" id="msg"></div>
+
+    <div id="result">
+      <div class="vrow">
+        <img id="thumb" alt="thumbnail" />
+        <div class="vinfo">
+          <div id="vtitle"></div>
+          <div id="vmeta"></div>
+        </div>
+      </div>
+      <div class="qrow">
+        <select id="quality"></select>
+        <button id="dlBtn">⬇️ Download Karo</button>
+      </div>
+      <div id="dprogress"><div id="dbar"></div></div>
+      <div class="msg" id="dlmsg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <b>✅ Which sites will work?</b>
+    <div class="sites">
+      <div class="site">▶️ YouTube</div>
+      <div class="site">📸 Instagram</div>
+      <div class="site">📘 Facebook</div>
+      <div class="site">🎵 TikTok</div>
+      <div class="site">🐦 X / Twitter</div>
+      <div class="site">🎞️ Vimeo</div>
+      <div class="site">📺 Dailymotion</div>
+
+    </div>
+  </div>
+
+  <footer style="font-size: 20px;">
+    <b> Public videos ke liye hai. Private/login wale videos download nahi honge.<br/>
+    Sirf apne ya copyright-free videos download karo. ⚖️</b>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const urlInput = $('url'), msg = $('msg'), result = $('result'),
+      thumb = $('thumb'), vtitle = $('vtitle'), vmeta = $('vmeta'),
+      quality = $('quality'), dlmsg = $('dlmsg'),
+      dprogress = $('dprogress'), dbar = $('dbar');
+
+function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
+
+// Paste button
+$('pasteBtn').onclick = async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (t) { urlInput.value = t.trim(); setMsg('Link paste ho gaya, quality chuno aur <b>Download Now</b> dabao 👍', 'ok'); }
+    else setMsg('Clipboard khaali hai. Link copy karke lao.', 'err');
+  } catch { setMsg('Paste kaam nahi kiya — link manually paste karo (Ctrl+V).', 'err'); }
+};
+
+// Enter dabane par bhi Download Now chale
+urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('dlBtn').click(); });
+
+// DOWNLOAD NOW (single button):
+//   1) HTML -> POST /api/info (server.js) -> video title, size, thumbnail lao
+//   2) HTML -> GET /api/download (server.js -> yt-dlp + ffmpeg) -> file save karo
+$('dlBtn').onclick = async () => {
+  const url = urlInput.value.trim();
+  if (!url || !/^https?:\/\//i.test(url)) { setMsg('❌ Pehle sahi video link paste karo (https:// se shuru hona chahiye).', 'err'); return; }
+  const q = quality.value || 'best';
+  $('dlBtn').disabled = true;
+  result.classList.remove('show');
+  dlmsg.textContent = '';
+  try {
+    // STEP 1: info nikalo (backend: server.js -> yt-dlp)
+    setMsg('<span class="spinner"></span>Video dhoonda ja raha hai... (lambi video me 10-20 sec lag sakta hai)', 'load');
+    const infoRes = await fetch('/api/info', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const d = await infoRes.json();
+    if (!infoRes.ok) throw new Error(d.error || 'Info nahi mili');
+
+    // Info card dikhao: title + duration + andazan size
+    vtitle.textContent = d.title || 'Video';
+    const mine = (d.qualities || []).find((x) => x.id === q);
+    vmeta.textContent = (d.uploader ? '👤 ' + d.uploader + '  •  ' : '') + '⏱️ ' + (d.durationText || '')
+      + ((mine && mine.sizeText) ? '  •  📦 ~' + mine.sizeText : '');
+    if (d.thumbnail) { thumb.src = d.thumbnail; thumb.style.display = 'block'; }
+    else thumb.style.display = 'none';
+    result.classList.add('show');
+    setMsg('✅ Video mil gaya! Download ho raha hai...', 'ok');
+
+    // STEP 2: download karo (backend: server.js -> yt-dlp + ffmpeg -> BAT se chalta server)
+    dlmsg.className = 'msg load';
+    dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... bada video ho to time lagega, page band mat karo ⏳';
+    dprogress.style.display = 'block'; dbar.style.width = '10%';
+
+    const apiUrl = '/api/download?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
+    const r = await fetch(apiUrl);
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error(t || 'Download fail ho gaya');
+    }
+    // Filename nikalo
+    let fname = 'video' + (q === 'audio' ? '.mp3' : '.mp4');
+    const cd = r.headers.get('Content-Disposition');
+    if (cd) {
+      const m = cd.match(/filename\*=UTF-8''(.+)/) || cd.match(/filename="(.+)"/);
+      if (m) fname = decodeURIComponent(m[1]);
+    }
+    const total = +(r.headers.get('Content-Length') || 0);
+    const reader = r.body.getReader();
+    const chunks = [];
+    let got = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); got += value.length;
+      if (total) dbar.style.width = Math.min(99, (got / total) * 100) + '%';
+      else dbar.style.width = Math.min(95, got / 500000) + '%';
+    }
+    dbar.style.width = '100%';
+    const blob = new Blob(chunks, { type: q === 'audio' ? 'audio/mpeg' : 'video/mp4' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    dlmsg.className = 'msg ok';
+    dlmsg.textContent = '✅ Download ho gaya! File check karo: ' + fname;
+  } catch (e) {
+    setMsg('❌ ' + e.message, 'err');
+    dlmsg.className = 'msg err';
+    dlmsg.textContent = '❌ ' + e.message;
+  } finally {
+    $('dlBtn').disabled = false;
+    setTimeout(() => { dprogress.style.display = 'none'; dbar.style.width = '0%'; }, 3000);
+  }
+};
+</script>
+</body>
+</html>
