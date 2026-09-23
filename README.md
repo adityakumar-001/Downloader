@@ -110,6 +110,23 @@ curl -L "http://localhost:3000/api/download?url=https%3A%2F%2Fwww.youtube.com%2F
 
 Headers: `Content-Disposition` (sahi filename), `Content-Type` (`video/mp4` / `audio/mpeg`).
 
+### `POST /api/cookies` — private / login wale videos (🔑 cookies)
+
+Sirf wahi videos khulengi jo **tumhare account** ko dikhti hain. Steps:
+
+```bash
+curl -X POST http://localhost:3000/api/cookies \
+  -H "Content-Type: application/json" \
+  -d @cookies.txt
+# {"token":"...","expiresIn":1800}
+```
+
+1. Chrome/Edge me **"Get cookies.txt LOCALLY"** extension se `youtube.com` ke cookies export karo.
+2. Website par **🔑 Private / login wala video?** section me wo `.txt` file lagao (token 30 min valid, phir auto-delete).
+3. Phir link paste karo — `info`/`download` me token khud lag jayega.
+
+> ⚠️ Doosre ke private video bina permission ke mat kholo. Share link me token (`&ct=`) aaye to kisi ko mat bhejo.
+
 ## 🧠 How it works
 
 ```

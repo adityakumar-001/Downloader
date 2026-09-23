@@ -55,6 +55,11 @@
   #dprogress { display:none; margin-top:12px; background: rgba(255,255,255,.12); border-radius: 10px; height: 10px; overflow: hidden; }
   #dbar { height: 100%; width: 0%; background: linear-gradient(90deg,#00ff96,#00b8ff); transition: width .2s; }
   .back { display: inline-block; margin-top: 16px; color: #ffd166; font-size: 14px; text-decoration: none; }
+  button.small { padding: 8px 14px; font-size: 13px; }
+  button.secondary { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
+  details.api { margin-top: 12px; font-size: 13px; opacity: .9; }
+  details.api summary { cursor: pointer; color: #ffd166; }
+  details.api code { display: block; background: rgba(0,0,0,.45); padding: 10px; border-radius: 8px; margin-top: 8px; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
   footer { text-align:center; opacity:.55; font-size:12px; margin:24px 0 10px; line-height:1.7;}
   @media (max-width:520px){ .row{flex-direction:column;} button{width:100%;} }
 </style>
@@ -93,6 +98,17 @@
       <div id="dprogress"><div id="dbar"></div></div>
       <div class="msg" id="dlmsg"></div>
     </div>
+
+    <details class="api">
+      <summary>🔑 Private / login wala video download karna hai?</summary>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="file" id="ckFile" accept=".txt,text/plain" style="font-size:12px; max-width:100%;" />
+        <button class="small" id="ckBtn" type="button">Cookies lagao</button>
+        <button class="small secondary" id="ckClear" type="button" style="display:none;">Hatao</button>
+      </div>
+      <div class="msg" id="ckStatus" style="font-size:12px;"></div>
+      <code>Chrome/Edge me "Get cookies.txt LOCALLY" extension se youtube.com ke cookies export karo, wo .txt file yahan lagao. Sirf wahi videos khulengi jo TUMHARE account ko dikhti hain. Cookies 30 min me auto-delete. Share link me token aaye to kisi ko mat bhejo.</code>
+    </details>
 
     <a class="back" href="index.html">← Back to Video Downloader</a>
   </div>
@@ -133,7 +149,7 @@ async function apiPostInfo(url) {
     try {
       const r = await fetch(u, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url, cookiesToken: (typeof CK_TOKEN !== 'undefined' && CK_TOKEN) || undefined })
       });
       const d = await r.json().catch(() => ({}));
       if (r.ok) { ACTIVE_API = u.replace(/\/api\/info$/, ''); return d; }
@@ -147,7 +163,8 @@ async function apiGetDownload(url, q) {
   let lastErr = null;
   for (const u of apiCandidates('/api/download')) {
     try {
-      const full = u + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q);
+      const full = u + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q)
+        + ((typeof CK_TOKEN !== 'undefined' && CK_TOKEN) ? '&cookiesToken=' + encodeURIComponent(CK_TOKEN) : '');
       const r = await fetch(full);
       if (r.ok) { ACTIVE_API = u.replace(/\/api\/download$/, ''); return r; }
       const t = await r.text().catch(() => '');
@@ -184,6 +201,47 @@ function rebuildQualities(list, prev) {
   quality.value = keep;
   return keep;
 }
+
+// ---- 🔑 Cookies (private / login wale YouTube videos) ----
+let CK_TOKEN = '';
+try { CK_TOKEN = new URLSearchParams(location.search).get('ct') || ''; } catch {}
+async function postCookies(text) {
+  let lastErr = null;
+  for (const u of apiCandidates('/api/cookies')) {
+    try {
+      const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.token) return d.token;
+      lastErr = new Error((d && d.error) || ('Server error (' + r.status + ')'));
+      if (r.status === 400) throw lastErr;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('Cookies upload nahi ho paye');
+}
+function ckUI() {
+  const st = document.getElementById('ckStatus');
+  const clr = document.getElementById('ckClear');
+  if (!st) return;
+  st.style.fontSize = '12px';
+  if (CK_TOKEN) { st.className = 'msg ok'; st.textContent = '✅ Cookies lage hue hain (30 min valid). Private videos try karo.'; if (clr) clr.style.display = ''; }
+  else { st.className = 'msg'; st.textContent = ''; if (clr) clr.style.display = 'none'; }
+}
+const ckBtn = document.getElementById('ckBtn');
+if (ckBtn) ckBtn.onclick = async () => {
+  const f = document.getElementById('ckFile');
+  const st = document.getElementById('ckStatus');
+  if (!f || !f.files || !f.files[0]) { if (st) { st.className = 'msg err'; st.style.fontSize = '12px'; st.textContent = '❌ Pehle cookies.txt file chuno.'; } return; }
+  ckBtn.disabled = true;
+  try {
+    if (st) { st.className = 'msg load'; st.style.fontSize = '12px'; st.textContent = '🔄 Cookies upload ho rahe hain...'; }
+    CK_TOKEN = await postCookies(await f.files[0].text());
+    ckUI();
+  } catch (e) { if (st) { st.className = 'msg err'; st.style.fontSize = '12px'; st.textContent = '❌ ' + e.message; } }
+  finally { ckBtn.disabled = false; }
+};
+const ckClr = document.getElementById('ckClear');
+if (ckClr) ckClr.onclick = () => { CK_TOKEN = ''; const f = document.getElementById('ckFile'); if (f) f.value = ''; ckUI(); };
+ckUI();
 
 async function downloadNow() {
   const url = urlInput.value.trim();

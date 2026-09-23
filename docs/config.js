@@ -11,4 +11,4 @@
 //
 // Abhi khaali ("") hai to localhost:3000 (start.bat) chalega.
 // ============================================================
-window.VD_DEFAULT_API = "";
+window.VD_DEFAULT_API = "https://video-downloader-8rrg.onrender.com";

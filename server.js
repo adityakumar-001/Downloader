@@ -153,6 +153,44 @@ function cleanupFiles(base) {
   } catch { /* ignore */ }
 }
 
+// ---- Cookies sessions (private / login wale YouTube videos ke liye) ----
+// User apne browser se export kiya cookies.txt bhejta hai (Netscape format).
+// Sirf un videos ka access milta hai jo USI account ko dikhte hain.
+// Token 30 min valid rehta hai, phir file auto-delete. Cookie contents log nahi hote.
+const cookieSessions = new Map();
+const COOKIE_TTL = 30 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [tok, s] of cookieSessions) {
+    if (s.exp <= now) {
+      try { fs.unlinkSync(s.file); } catch { /* ignore */ }
+      cookieSessions.delete(tok);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
+function saveCookies(content) {
+  const text = String(content || '');
+  if (text.length < 20 || text.length > 200000) return null;
+  if (!/youtube\.com|youtu\.be|google\.com|#\s*Netscape/i.test(text)) return null;
+  const token = crypto.randomBytes(16).toString('hex');
+  const file = path.join(TMP_DIR, 'ck_' + token + '.txt');
+  fs.writeFileSync(file, text, 'utf8');
+  cookieSessions.set(token, { file, exp: Date.now() + COOKIE_TTL });
+  return token;
+}
+
+function resolveCookies(token) {
+  if (!token) return { file: null, invalid: false };
+  const key = String(token);
+  const s = cookieSessions.get(key);
+  if (!s || s.exp <= Date.now()) {
+    if (s) { try { fs.unlinkSync(s.file); } catch { /* ignore */ } cookieSessions.delete(key); }
+    return { file: null, invalid: true };
+  }
+  return { file: s.file, invalid: false };
+}
+
 function bestQuality(q) {
   const map = { '2160': '2160p', '4k': '2160p', '1440': '1440p', '2k': '1440p', '1080': '1080p', '720': '720p', '480': '480p', '360': '360p', 'audio': 'audio', 'mp3': 'audio', 'best': 'best' };
   return map[q] || 'best';
@@ -202,12 +240,31 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'Server chal raha hai. No login chahiye.' });
 });
 
+// ---- Cookies upload (private / login wale videos ke liye) ----
+// Body: { content: "<cookies.txt ka pura text>" } -> { token, expiresIn }
+// Token ko /api/info me {cookiesToken} aur /api/download me ?cookiesToken= me bhejo.
+app.post('/api/cookies', (req, res) => {
+  try {
+    const token = saveCookies((req.body || {}).content);
+    if (!token) {
+      return res.status(400).json({ error: 'Sahi cookies.txt file lagao (browser extension se youtube.com ke cookies export karo, pura text bhejo).' });
+    }
+    res.json({ token, expiresIn: COOKIE_TTL / 1000 });
+  } catch (e) {
+    res.status(500).json({ error: 'Cookies save nahi ho paye.' });
+  }
+});
+
 // ---- STEP 1: Link ki info nikalo (title, thumbnail, duration) ----
 app.post('/api/info', async (req, res) => {
   try {
-    const { url } = req.body || {};
+    const { url, cookiesToken } = req.body || {};
     if (!url || !isValidUrl(url)) {
       return res.status(400).json({ error: 'Sahi video link paste karo (https://...)' });
+    }
+    const ck = resolveCookies(cookiesToken);
+    if (ck.invalid) {
+      return res.status(400).json({ error: '🔑 Cookies expire ho gaye hain (30 min limit). cookies.txt dobara lagao.' });
     }
 
     // Direct .mp4 link hai to yt-dlp ki jarurat nahi (HEAD se size nikalo)
@@ -240,6 +297,7 @@ app.post('/api/info', async (req, res) => {
     const info = await youtubedl(normalizeUrl(url), baseYtDlpOpts({
       dumpSingleJson: true,
       skipDownload: true,
+      ...(ck.file ? { cookies: ck.file } : {}),
     }));
 
     // Duration: koi limit nahi, bas display karo
@@ -319,15 +377,15 @@ app.post('/api/info', async (req, res) => {
     console.error('INFO ERROR:', e.message);
     const msg = String((e && (e.stderr || e.message)) || '');
     if (msg.includes('Private') || msg.includes('Login required')) {
-      return res.status(400).json({ error: 'Ye video private hai ya login mangta hai. Public video ka link try karo (login ki jarurat nahi hai public videos ke liye).' });
+      return res.status(400).json({ error: 'Ye video private hai ya login mangta hai. 🔑 Apne YouTube account ke cookies lagao (page me 🔑 option) — sirf wahi videos khulengi jo tumhare account ko dikhti hain.' });
     }
     if (/sign in to confirm|not a bot|429|too many requests/i.test(msg)) {
-      return res.status(502).json({ error: 'YouTube ne temporarily block kiya hai (bot-check). 1-2 min ruk kar dobara try karo, ya bina &list= wala clean link (sirf watch?v=ID) paste karo.' });
+      return res.status(502).json({ error: 'YouTube ne temporarily block kiya hai (bot-check). 1-2 min ruk kar dobara try karo, ya 🔑 apne cookies lagao — aksar turant chal padta hai.' });
     }
     if (msg.includes('Unsupported URL') || msg.includes('not a valid URL')) {
       return res.status(400).json({ error: 'Ye link support nahi hota. YouTube, Instagram, Facebook, TikTok, X, Vimeo, Dailymotion ka public link try karo.' });
     }
-    res.status(500).json({ error: 'Video ki info nahi mil payi. Link check karke dobara try karo. (&list=&index= wala link ho to sirf v=ID wala part rakho).' });
+    res.status(500).json({ error: 'Video ki info nahi mil payi. Link check karke dobara try karo. (YouTube link hai aur baar-baar fail ho raha hai to 🔑 apne cookies.txt lagakar try karo.)' });
   }
 });
 
@@ -335,10 +393,15 @@ app.post('/api/info', async (req, res) => {
 app.get('/api/download', async (req, res) => {
   const base = tmpBase();
   try {
-    const { url: rawUrl, quality = 'best' } = req.query;
+    const { url: rawUrl, quality = 'best', cookiesToken } = req.query;
     if (!rawUrl || !isValidUrl(rawUrl)) {
       return res.status(400).send('Sahi video link do');
     }
+    const ck = resolveCookies(cookiesToken);
+    if (ck.invalid) {
+      return res.status(400).send('🔑 Cookies expire ho gaye hain (30 min limit). cookies.txt dobara lagao.');
+    }
+    const ckOpt = ck.file ? { cookies: ck.file } : {};
     // &list=&index= wale YouTube links ko clean single-video URL banao
     const url = normalizeUrl(rawUrl);
 
@@ -364,6 +427,7 @@ app.get('/api/download', async (req, res) => {
       const meta = await youtubedl(url, baseYtDlpOpts({
         getFilename: true,
         output: '%(title)s',
+        ...ckOpt,
       }));
       title = String(meta).trim().split('\n')[0] || 'video';
     } catch { /* ignore, default naam use hoga */ }
@@ -378,6 +442,7 @@ app.get('/api/download', async (req, res) => {
       quiet: true,
       ffmpegLocation: ffmpegPath,
       concurrentFragments: 4,
+      ...ckOpt,
     });
     if (isAudio) {
       args.extractAudio = true;
@@ -403,6 +468,7 @@ app.get('/api/download', async (req, res) => {
         output: outputTemplate,
         quiet: true,
         ffmpegLocation: ffmpegPath,
+        ...ckOpt,
       }));
     }
 
@@ -430,7 +496,16 @@ app.get('/api/download', async (req, res) => {
   } catch (e) {
     console.error(e);
     cleanupFiles(base);
-    if (!res.headersSent) res.status(500).send('Download me error aaya: ' + (e.message || ''));
+    if (!res.headersSent) {
+      const m = String((e && (e.stderr || e.message)) || '');
+      if (/private|login required/i.test(m)) {
+        res.status(400).send('Ye video private hai ya login mangta hai. Apne YouTube cookies lagao (sirf tumhare account wale videos khulenge).');
+      } else if (/sign in to confirm|not a bot|429/i.test(m)) {
+        res.status(502).send('YouTube bot-check lag gaya. Apne cookies lagakar dobara try karo.');
+      } else {
+        res.status(500).send('Download me error aaya: ' + (e.message || ''));
+      }
+    }
   }
 });
 
