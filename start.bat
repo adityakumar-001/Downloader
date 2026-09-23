@@ -1,10 +1,10 @@
 @echo off
 REM CHAIN: start.bat --(npm start)--> server.js (Backend: /api/*) --(yt-dlp + ffmpeg)--> video file
-REM                        ^-- public\index.html (Frontend) fetch() se server.js ko bulata hai
+REM                        ^-- docs\index.html (Frontend) fetch() se server.js ko bulata hai
 cd /d "%~dp0"
 echo ========================================
 echo   Video Downloader - Server Start ho raha hai
-echo   [Frontend] public\index.html -- [Backend] server.js -- [yt-dlp + ffmpeg]
+echo   [Frontend] docs\index.html -- [Backend] server.js -- [yt-dlp + ffmpeg]
 echo   Koi login nahi chahiye!
 echo ========================================
 echo.

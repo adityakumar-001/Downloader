@@ -119,6 +119,16 @@ const urlInput = $('url'), msg = $('msg'), vbox = $('vbox'),
 
 function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
 
+// GitHub Pages / file se khola ho aur backend set na ho to hint dikhao
+function apiHint() {
+  try {
+    const h = location.hostname || '';
+    if (!apiBase() && (h.endsWith('github.io') || location.protocol === 'file:'))
+      return ' 💡 GitHub Pages par sirf website hai — download ke liye backend URL chahiye (?api=YOUR_BACKEND ya index page ki ⚙️ setting).';
+  } catch {}
+  return '';
+}
+
 function rebuildQualities(list, prev) {
   if (!Array.isArray(list) || !list.length) return prev;
   quality.innerHTML = '';
@@ -193,7 +203,7 @@ async function downloadNow() {
     dlmsg.className = 'msg ok';
     dlmsg.textContent = '✅ Download ho gaya! File check karo: ' + fname;
   } catch (e) {
-    setMsg('❌ ' + e.message, 'err');
+    setMsg('❌ ' + e.message + apiHint(), 'err');
     vbox.classList.add('show');
     dlmsg.className = 'msg err';
     dlmsg.textContent = '❌ ' + e.message;

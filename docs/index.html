@@ -179,6 +179,17 @@ const urlInput = $('url'), msg = $('msg'), result = $('result'),
 
 function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
 
+// GitHub Pages / file se khola ho aur backend set na ho to hint dikhao
+// (Pages par sirf website hoti hai — download ke liye backend chahiye)
+function apiHint() {
+  try {
+    const h = location.hostname || '';
+    if (!apiBase() && (h.endsWith('github.io') || location.protocol === 'file:'))
+      return '<br>💡 GitHub Pages par sirf website hai — download ke liye apna backend (Render/Railway/VPS) deploy karo aur neeche ⚙️ API setting me uska URL save karo. Details README me hain.';
+  } catch {}
+  return '';
+}
+
 // Settings
 $('apiBase').value = apiBase();
 $('saveApi').onclick = () => {
@@ -287,7 +298,7 @@ $('dlBtn').onclick = async () => {
     dlmsg.className = 'msg ok';
     dlmsg.textContent = '✅ Download ho gaya! File check karo: ' + fname;
   } catch (e) {
-    setMsg('❌ ' + e.message, 'err');
+    setMsg('❌ ' + e.message + apiHint(), 'err');
     dlmsg.className = 'msg err';
     dlmsg.textContent = '❌ ' + e.message;
   } finally {

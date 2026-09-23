@@ -13,7 +13,7 @@ No login. No length limit. 100% free.
 
 | Page | URL | Kaam |
 |------|-----|------|
-| Home / Downloader | `/` (`public/index.html`) | Link paste → quality chuno → download. Qualities server se dynamic aati hain (size + 4K badge samet) |
+| Home / Downloader | `/` (`docs/index.html`) | Link paste → quality chuno → download. Qualities server se dynamic aati hain (size + 4K badge samet) |
 | Share / Download page | `/download.html?url=VIDEO_LINK&quality=720` | Direct shareable download link — khulte hi auto-download shuru. `&quality=2160\|1440\|1080\|720\|480\|360\|best\|audio`, `&auto=0` se auto-start band, `&api=` se alag server |
 
 Dono pages same backend API use karte hain. Agar frontend alag host (jaise GitHub Pages) par hai to page me **⚙️ API setting** me backend URL save karo, ya link me `?api=https://aapka-server.com` jodo.
@@ -35,12 +35,29 @@ npm start
 
 > Node.js LTS chahiye: https://nodejs.org
 
-## ☁️ Deploy (public backend ke liye)
+## 🌍 Website link banao (GitHub Pages) — step by step
 
-`PORT` env se port set hota hai (default `3000`).
+Repo ka link bhejne se website **nahi** khulti — pehle Pages ON karna padta hai:
 
-- **Render / Railway / VPS:** repo push karo → `npm install` → `npm start` → mile hue public URL ko frontend ki API setting me daalo.
-- **GitHub Pages (frontend only):** `public/` folder host karo, aur `index.html` / `download.html` me `?api=YOUR_BACKEND_URL` use karo (backend bina download kaam nahi karega — yt-dlp + ffmpeg server par chalta hai).
+1. GitHub par apna repo kholo → **Settings** (upar tabs me) → **Pages** (left menu).
+2. **Build and deployment** me: Source = **Deploy from a branch**.
+3. Branch = **main** (ya `master`), folder = **`/docs`** → **Save** dabao.
+4. 1–2 min ruko. Fir site khulegi: **`https://USERNAME.github.io/REPO-NAME/`**
+   (USERNAME = tumhara GitHub username, REPO-NAME = repo ka naam).
+5. Ye link kisi ko bhi bhejo — **Universal Video Downloader** website khulegi, same features ke saath.
+
+> ⚠️ **Jaruri samajh:** GitHub Pages par **sirf website** (frontend) chalti hai. Asli **download** backend (`server.js` + yt-dlp + ffmpeg) se hota hai, jo alag deploy karna padta hai (neeche dekho). Backend bina page khulega par download nahi hoga — page khud hint dikhayega.
+
+## ☁️ Backend deploy (download ke liye — Render free)
+
+1. https://render.com par free account banao → **New +** → **Web Service** → apna GitHub repo connect karo.
+2. Settings: **Build Command** = `npm install`, **Start Command** = `npm start`. (PORT Render khud deta hai — code me support hai.)
+3. Deploy ke baad URL milega, jaise `https://video-downloader-xyz.onrender.com`.
+4. Website ko backend se jodo — 2 tarike:
+   - Link me jod do: `https://USERNAME.github.io/REPO-NAME/?api=https://video-downloader-xyz.onrender.com`
+   - Ya website par **⚙️ API setting** me backend URL paste karke **Save** dabao (browser me save rehta hai).
+
+`PORT` env se port set hota hai (default `3000`). Railway/VPS par bhi same: `npm install` → `npm start`.
 
 ## 🔌 API Docs
 

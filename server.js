@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'docs')));
 
 // URL valid hai ya nahi
 function isValidUrl(str) {
@@ -435,10 +435,10 @@ app.get('/api/download', async (req, res) => {
 });
 
 // ---- FRONTEND LINK ----
-// public/index.html ko web pe serve karo
+// docs/index.html ko web pe serve karo (yehi folder GitHub Pages par website banta hai)
 // CHAIN: Browser (index.html) --fetch /api/*--> server.js (ye file) --yt-dlp+ffmpeg--> video
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
 // SPA fallback: /api chhod ke har GET ko index.html do (Express 4 + 5 dono me chalega)
@@ -446,7 +446,7 @@ app.use((req, res, next) => {
   if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API route nahi mila' });
   if (req.path.includes('.') && req.path !== '/') return next(); // static file miss ho to next
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'docs', 'index.html'));
 });
 
 app.listen(PORT, () => {
