@@ -1,14 +1,14 @@
 // ============================================================
-// VIDEO DOWNLOADER — IN-BUILD API CONFIG (Zero-config for user)
+// VIDEO DOWNLOADER — BUILT-IN API CONFIG (zero-config for users)
 // ------------------------------------------------------------
-// END-USER ko kuch nahi karna. Ye file OWNER (aap) ke liye hai.
+// END USERS do nothing. This file is for the OWNER (you).
 //
-// Backend deploy (Render/Railway/VPS) ke baad jo URL mile,
-// jaise: https://video-downloader-xyz.onrender.com
-// use beech wale quotes me paste kar do. Bas. Save + commit.
-// Uske baad website kholne wale har user ka download
-// automatically usi server se chalega — koi ⚙️ setting nahi.
+// After deploying the backend (Render/Railway/VPS) you get a URL
+// like: https://video-downloader-xyz.onrender.com
+// paste it between the quotes below. Save + commit. Done.
+// Every visitor's downloads then run automatically through that
+// server — no ⚙️ settings needed.
 //
-// Abhi khaali ("") hai to localhost:3000 (start.bat) chalega.
+// While empty (""), localhost:3000 (start.bat) is used.
 // ============================================================
 window.VD_DEFAULT_API = "https://video-downloader-8rrg.onrender.com";

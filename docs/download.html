@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Download — Universal Video Downloader</title>
-<meta name="description" content="Share kiye gaye video link ko 4K tak video+audio me download karo. Download API se linked page." />
+<meta name="description" content="Download a shared video link in video + audio up to 4K. Linked to the Download API page." />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -52,8 +52,11 @@
     background: rgba(0,0,0,.4); color: #fff; border: 1px solid rgba(255,255,255,.25); outline: none;
   }
   select option { color: #000; }
-  #dprogress { display:none; margin-top:12px; background: rgba(255,255,255,.12); border-radius: 10px; height: 10px; overflow: hidden; }
-  #dbar { height: 100%; width: 0%; background: linear-gradient(90deg,#00ff96,#00b8ff); transition: width .2s; }
+  #dprogress { display:none; margin-top:12px; background: rgba(255,255,255,.12); border-radius: 10px; height: 12px; overflow: hidden; }
+  #dbar { height: 100%; width: 0%; background: linear-gradient(90deg,#00ff96,#00b8ff); transition: width .3s; }
+  #dlstats { display:none; margin-top:8px; font-size:13px; color:#ffd166; font-variant-numeric: tabular-nums; word-break: break-word; line-height:1.6; }
+  #dlstats.show { display:block; }
+  #dlpct { font-weight:700; color:#fff; }
   .back { display: inline-block; margin-top: 16px; color: #ffd166; font-size: 14px; text-decoration: none; }
   button.small { padding: 8px 14px; font-size: 13px; }
   button.secondary { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); }
@@ -68,7 +71,7 @@
 <div class="wrap">
   <header>
     <h1>⬇️ <span>Download Video</span></h1>
-    <p class="sub">Ye page <b>Download API</b> (<code>/api/info</code> + <code>/api/download</code>) se linked hai.<br/>Link: <code>download.html?url=VIDEO_LINK&amp;quality=720</code></p>
+    <p class="sub">This page is linked to the <b>Download API</b> (<code>/api/info</code> + <code>/api/download-start</code> + <code>/api/progress</code> + <code>/api/file</code>).<br/>Link format: <code>download.html?url=VIDEO_LINK&amp;quality=720</code></p>
   </header>
 
   <div class="card">
@@ -77,7 +80,7 @@
       <input id="url" type="url" placeholder="https://..." autocomplete="off" />
     </div>
     <div class="qrow">
-      <select id="quality" title="Quality (video+audio merged)">
+      <select id="quality" title="Quality (merged video+audio)">
         <option value="best">Best Quality ⭐ (up to 4K)</option>
         <option value="2160">2160p 4K Ultra HD</option>
         <option value="1440">1440p 2K Quad HD</option>
@@ -96,30 +99,31 @@
       <div id="vtitle"></div>
       <div id="vmeta"></div>
       <div id="dprogress"><div id="dbar"></div></div>
+      <div id="dlstats"><span id="dlpct">0%</span> <span id="dltxt"></span></div>
       <div class="msg" id="dlmsg"></div>
     </div>
 
     <details class="api">
-      <summary>🔑 Private / login wala video download karna hai?</summary>
+      <summary>🔑 Need to download a private / login-protected video?</summary>
       <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
         <input type="file" id="ckFile" accept=".txt,text/plain" style="font-size:12px; max-width:100%;" />
-        <button class="small" id="ckBtn" type="button">Cookies lagao</button>
-        <button class="small secondary" id="ckClear" type="button" style="display:none;">Hatao</button>
+        <button class="small" id="ckBtn" type="button">Apply cookies</button>
+        <button class="small secondary" id="ckClear" type="button" style="display:none;">Remove</button>
       </div>
       <div class="msg" id="ckStatus" style="font-size:12px;"></div>
-      <code>Chrome/Edge me "Get cookies.txt LOCALLY" extension se youtube.com ke cookies export karo, wo .txt file yahan lagao. Sirf wahi videos khulengi jo TUMHARE account ko dikhti hain. Cookies 30 min me auto-delete. Share link me token aaye to kisi ko mat bhejo.</code>
+      <code>In Chrome/Edge, export youtube.com cookies with the "Get cookies.txt LOCALLY" extension, then attach that .txt file here. Only videos visible to YOUR account will open. Cookies auto-delete after 30 min. If a share link contains a token, do not send it to anyone.</code>
     </details>
 
     <a class="back" href="index.html">← Back to Video Downloader</a>
   </div>
 
-  <footer>Sirf apne ya copyright-free videos download karo. ⚖️</footer>
+  <footer>Only download your own or copyright-free videos. ⚖️</footer>
 </div>
 
-<!-- IN-BUILD API: docs/config.js se aata hai, user ko kuch nahi karna -->
+<!-- BUILT-IN API: comes from docs/config.js, users do nothing -->
 <script src="./config.js"></script>
 <script>
-// ZERO-CONFIG API (in-build) — ?api= > saved > config.js DEFAULT > same-origin
+// ZERO-CONFIG API (built-in) — ?api= > saved > config.js DEFAULT > same-origin
 const DEFAULT_API = ((typeof window.VD_DEFAULT_API === 'string' ? window.VD_DEFAULT_API : '') || '').trim().replace(/\/+$/, '');
 const getQueryApi = () => { try { return (new URLSearchParams(location.search).get('api') || '').trim().replace(/\/+$/, ''); } catch { return ''; } };
 const getSavedApi = () => { try { return (localStorage.getItem('vd_api_base') || '').trim().replace(/\/+$/, ''); } catch { return ''; } };
@@ -128,65 +132,193 @@ try { if (getQueryApi()) localStorage.setItem('vd_api_base', getQueryApi()); } c
 const apiBase = () => ACTIVE_API;
 const api = (path) => ACTIVE_API + path;
 
+// True when this page itself runs locally (start.bat / launcher / file://).
+// Local pages talk to the LOCAL server first — the launcher flow must never
+// wait on (or fail because of) the remote backend.
+function isLocalPage() {
+  try {
+    const h = (location.hostname || '').toLowerCase();
+    return h === '' || h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  } catch { return false; }
+}
+
 function apiCandidates(path) {
-  const list = [ACTIVE_API + path];
-  if (DEFAULT_API && DEFAULT_API !== ACTIVE_API) list.push(DEFAULT_API + path);
-  if (ACTIVE_API !== '') list.push(path);
-  // Local fallback: file:// double-click karne par bhi local backend pakad lega
-  // (https page par http fallback block hota hai, isliye skip)
+  const localBases = [];
   try {
     if (location.protocol !== 'https:') {
       for (const base of ['http://localhost:3000', 'http://127.0.0.1:3000']) {
-        if (base !== ACTIVE_API && base !== DEFAULT_API) list.push(base + path);
+        if (base !== ACTIVE_API && base !== DEFAULT_API) localBases.push(base);
       }
     }
   } catch {}
+  const list = [];
+  if (isLocalPage()) {
+    if (ACTIVE_API !== '') list.push(path); // same-origin = local server from start.bat
+    for (const b of localBases) list.push(b + path);
+  }
+  list.push(ACTIVE_API + path);
+  if (DEFAULT_API && DEFAULT_API !== ACTIVE_API) list.push(DEFAULT_API + path);
+  if (!isLocalPage()) {
+    if (ACTIVE_API !== '') list.push(path);
+    for (const b of localBases) list.push(b + path);
+  }
   return [...new Set(list)];
+}
+// fetch with timeout — a sleeping remote backend must never hang the UI;
+// on timeout the caller moves to the next candidate.
+async function fetchTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, Object.assign({}, opts || {}, { signal: ctrl.signal }));
+  } finally { clearTimeout(t); }
 }
 async function apiPostInfo(url) {
   let lastErr = null;
   for (const u of apiCandidates('/api/info')) {
     try {
-      const r = await fetch(u, {
+      const r = await fetchTimeout(u, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, cookiesToken: (typeof CK_TOKEN !== 'undefined' && CK_TOKEN) || undefined })
-      });
+      }, 35000);
       const d = await r.json().catch(() => ({}));
       if (r.ok) { ACTIVE_API = u.replace(/\/api\/info$/, ''); return d; }
       lastErr = new Error(d.error || ('Server error (' + r.status + ')'));
       if (r.status === 400 || r.status === 404) throw lastErr;
-    } catch (e) { lastErr = e; if (e && /^(Sahi video|Ye video|Ye link)/.test(e.message)) throw e; }
+    } catch (e) { lastErr = e; if (e && /^(Please paste|This video|This link)/.test(e.message)) throw e; }
   }
-  throw lastErr || new Error('Server se connect nahi ho paya');
+  throw lastErr || new Error('Could not connect to the server');
+}
+async function apiStartJob(url, q) {
+  let lastErr = null;
+  for (const u of apiCandidates('/api/download-start')) {
+    try {
+      const r = await fetchTimeout(u, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url, quality: q,
+          cookiesToken: (typeof CK_TOKEN !== 'undefined' && CK_TOKEN) || undefined,
+          client: (typeof DL_CLIENT !== 'undefined' && DL_CLIENT) || undefined,
+        })
+      }, 35000);
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.jobId) { ACTIVE_API = u.replace(/\/api\/download-start$/, ''); return d; }
+      if (r.status === 404) { const err = new Error('__LEGACY__'); err.legacy = true; throw err; }
+      lastErr = new Error(d.error || ('Server error (' + r.status + ')'));
+      if (r.status === 400) throw lastErr;
+    } catch (e) { if (e && e.legacy) throw e; lastErr = e; if (e && /^(Please provide|This video)/.test(e.message)) throw e; }
+  }
+  throw lastErr || new Error('Could not start the download');
+}
+async function apiJobProgress(jobId) {
+  const r = await fetchTimeout(api('/api/progress?jobId=') + encodeURIComponent(jobId), {}, 15000);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((d && d.error) || ('Progress error (' + r.status + ')'));
+  return d;
+}
+async function apiGetFile(jobId) {
+  const r = await fetch(api('/api/file?jobId=') + encodeURIComponent(jobId));
+  if (r.ok) return r;
+  const t = await r.text().catch(() => '');
+  throw new Error(t || 'Download failed');
 }
 async function apiGetDownload(url, q) {
   let lastErr = null;
   for (const u of apiCandidates('/api/download')) {
     try {
       const full = u + '?url=' + encodeURIComponent(url) + '&quality=' + encodeURIComponent(q)
-        + ((typeof CK_TOKEN !== 'undefined' && CK_TOKEN) ? '&cookiesToken=' + encodeURIComponent(CK_TOKEN) : '');
+        + ((typeof CK_TOKEN !== 'undefined' && CK_TOKEN) ? '&cookiesToken=' + encodeURIComponent(CK_TOKEN) : '')
+        + (DL_CLIENT ? '&client=' + encodeURIComponent(DL_CLIENT) : '');
       const r = await fetch(full);
-      if (r.ok) { ACTIVE_API = u.replace(/\/api\/download$/, ''); return r; }
+      if (r.ok) { ACTIVE_API = u.replace(/\/api\/download$/, ''); r._dlUrl = full; return r; }
       const t = await r.text().catch(() => '');
-      lastErr = new Error(t || 'Download fail ho gaya');
+      lastErr = new Error(t || 'Download failed');
       if (r.status === 400 || r.status === 404) throw lastErr;
-    } catch (e) { lastErr = e; if (e && /^(Sahi video)/.test(e.message)) throw e; }
+    } catch (e) { lastErr = e; if (e && /^(Please provide)/.test(e.message)) throw e; }
   }
-  throw lastErr || new Error('Download fail ho gaya');
+  throw lastErr || new Error('Download failed');
 }
 
 const $ = (id) => document.getElementById(id);
 const urlInput = $('url'), msg = $('msg'), vbox = $('vbox'),
       thumb = $('thumb'), vtitle = $('vtitle'), vmeta = $('vmeta'),
       quality = $('quality'), dlmsg = $('dlmsg'),
-      dprogress = $('dprogress'), dbar = $('dbar');
+      dprogress = $('dprogress'), dbar = $('dbar'),
+      dlstats = $('dlstats'), dlpct = $('dlpct'), dltxt = $('dltxt');
 
 function setMsg(t, cls) { msg.className = 'msg ' + (cls || ''); msg.innerHTML = t; }
 
-// Backend fail hint (in-build — user setting nahi)
+// Backend failure hint (built-in — no user settings)
 function apiHint() {
-  if (!DEFAULT_API && !ACTIVE_API) return ' 💡 Server OFF lag raha hai — start.bat chalao (server ON rakho), phir retry karo.';
+  if (!DEFAULT_API && !ACTIVE_API) return ' 💡 The server looks OFF — run start.bat (keep the server ON), then retry.';
   return '';
+}
+
+function fmtBytes(n) {
+  n = +n || 0;
+  if (n <= 0) return '0 B';
+  if (n >= 1073741824) return (n / 1073741824).toFixed(2) + ' GB';
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return Math.round(n / 1024) + ' KB';
+  return n + ' B';
+}
+
+// Real-time progress bar + size line.
+function renderProgress(p, phase) {
+  const pct = Math.max(0, Math.min(100, +p.percent || 0));
+  dprogress.style.display = 'block';
+  dlstats.classList.add('show');
+  dbar.style.width = pct + '%';
+  dlpct.textContent = (Math.round(pct * 10) / 10) + '%';
+  const dl = p.downloadedText || (p.downloadedBytes ? fmtBytes(p.downloadedBytes) : null);
+  const tot = p.totalText || (p.totalBytes ? fmtBytes(p.totalBytes) : null);
+  let sizePart = '';
+  if (dl && tot) sizePart = ` • ${dl} of ${tot}`;
+  else if (tot) sizePart = ` • ~${tot}`;
+  else if (dl) sizePart = ` • ${dl}`;
+  const speedPart = p.speed ? ` • ${p.speed}` : '';
+  const etaPart = p.eta ? ` • ETA ${p.eta}` : '';
+  const label = phase === 'save' ? 'Saving to device'
+    : phase === 'merge' ? 'Merging video + audio'
+    : (p.detail || 'Downloading');
+  dltxt.textContent = ` • ${label}${sizePart}${speedPart}${etaPart}`;
+}
+
+async function saveStreamWithProgress(r, fname, mime, totalHint, directUrl) {
+  let total = +(r.headers.get('Content-Length') || r.headers.get('X-File-Size') || totalHint || 0);
+  const cd = r.headers.get('Content-Disposition');
+  if (cd) {
+    const m = cd.match(/filename\*=UTF-8''(.+)/) || cd.match(/filename="(.+)"/);
+    if (m) { try { fname = decodeURIComponent(m[1].trim()); } catch {} }
+  }
+  // Very large files (>800 MB) download NATIVELY via the browser instead —
+  // no giant in-tab Blob, no tab crash on big videos.
+  if (directUrl && total > 800 * 1024 * 1024) {
+    try { if (r.body && r.body.cancel) await r.body.cancel(); } catch {}
+    renderProgress({ percent: 100, downloadedBytes: total, totalBytes: total, downloadedText: fmtBytes(total), totalText: fmtBytes(total) }, 'save');
+    const a = document.createElement('a');
+    a.href = directUrl;
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    return fname;
+  }
+  const reader = r.body.getReader();
+  const chunks = [];
+  let got = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); got += value.length;
+    renderProgress({ percent: total ? (got / total) * 100 : Math.min(95, got / 500000), downloadedBytes: got, totalBytes: total || got, downloadedText: fmtBytes(got), totalText: total ? fmtBytes(total) : null }, 'save');
+  }
+  renderProgress({ percent: 100, downloadedBytes: got, totalBytes: total || got, downloadedText: fmtBytes(got), totalText: fmtBytes(total || got) }, 'save');
+  const blob = new Blob(chunks, { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  return fname;
 }
 
 function rebuildQualities(list, prev) {
@@ -202,38 +334,39 @@ function rebuildQualities(list, prev) {
   return keep;
 }
 
-// ---- 🔑 Cookies (private / login wale YouTube videos) ----
+// ---- 🔑 Cookies (private / login-protected YouTube videos) ----
 let CK_TOKEN = '';
+let DL_CLIENT = '';
 try { CK_TOKEN = new URLSearchParams(location.search).get('ct') || ''; } catch {}
 async function postCookies(text) {
   let lastErr = null;
   for (const u of apiCandidates('/api/cookies')) {
     try {
-      const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
+      const r = await fetchTimeout(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) }, 15000);
       const d = await r.json().catch(() => ({}));
       if (r.ok && d.token) return d.token;
       lastErr = new Error((d && d.error) || ('Server error (' + r.status + ')'));
       if (r.status === 400) throw lastErr;
     } catch (e) { lastErr = e; }
   }
-  throw lastErr || new Error('Cookies upload nahi ho paye');
+  throw lastErr || new Error('Could not upload cookies');
 }
 function ckUI() {
   const st = document.getElementById('ckStatus');
   const clr = document.getElementById('ckClear');
   if (!st) return;
   st.style.fontSize = '12px';
-  if (CK_TOKEN) { st.className = 'msg ok'; st.textContent = '✅ Cookies lage hue hain (30 min valid). Private videos try karo.'; if (clr) clr.style.display = ''; }
+  if (CK_TOKEN) { st.className = 'msg ok'; st.textContent = '✅ Cookies applied (valid for 30 min). Try your private videos now.'; if (clr) clr.style.display = ''; }
   else { st.className = 'msg'; st.textContent = ''; if (clr) clr.style.display = 'none'; }
 }
 const ckBtn = document.getElementById('ckBtn');
 if (ckBtn) ckBtn.onclick = async () => {
   const f = document.getElementById('ckFile');
   const st = document.getElementById('ckStatus');
-  if (!f || !f.files || !f.files[0]) { if (st) { st.className = 'msg err'; st.style.fontSize = '12px'; st.textContent = '❌ Pehle cookies.txt file chuno.'; } return; }
+  if (!f || !f.files || !f.files[0]) { if (st) { st.className = 'msg err'; st.style.fontSize = '12px'; st.textContent = '❌ Please choose your cookies.txt file first.'; } return; }
   ckBtn.disabled = true;
   try {
-    if (st) { st.className = 'msg load'; st.style.fontSize = '12px'; st.textContent = '🔄 Cookies upload ho rahe hain...'; }
+    if (st) { st.className = 'msg load'; st.style.fontSize = '12px'; st.textContent = '🔄 Uploading cookies...'; }
     CK_TOKEN = await postCookies(await f.files[0].text());
     ckUI();
   } catch (e) { if (st) { st.className = 'msg err'; st.style.fontSize = '12px'; st.textContent = '❌ ' + e.message; } }
@@ -245,16 +378,17 @@ ckUI();
 
 async function downloadNow() {
   const url = urlInput.value.trim();
-  if (!url || !/^https?:\/\//i.test(url)) { setMsg('❌ Sahi video link do (https://...)', 'err'); return; }
+  if (!url || !/^https?:\/\//i.test(url)) { setMsg('❌ Please provide a valid video link (https://...)', 'err'); return; }
   const q0 = quality.value || '720';
   $('dlBtn').disabled = true;
   vbox.classList.remove('show');
   try {
-    // STEP 1: /api/info (in-build backend, auto-fallback)
-    setMsg('<span class="spinner"></span>Video info li ja rahi hai...', 'load');
+    // STEP 1: /api/info (built-in backend, auto-fallback)
+    setMsg('<span class="spinner"></span>Fetching video info...', 'load');
     const d = await apiPostInfo(url);
 
     const q = rebuildQualities(d.qualities, q0);
+    DL_CLIENT = d.client || DL_CLIENT || '';
     vtitle.textContent = d.title || 'Video';
     const mine = (d.qualities || []).find((x) => x.id === q);
     const badge4k = (d.maxHeight && d.maxHeight >= 2000) ? '  •  🎬 4K available' : '';
@@ -264,39 +398,53 @@ async function downloadNow() {
     else thumb.style.display = 'none';
     vbox.classList.add('show');
 
-    // STEP 2: /api/download (in-build backend, auto-fallback)
+    // STEP 2: start a progress-tracked job
     dlmsg.className = 'msg load';
-    dlmsg.innerHTML = '<span class="spinner"></span>Download ho raha hai... page band mat karo ⏳';
-    dprogress.style.display = 'block'; dbar.style.width = '10%';
-    setMsg('✅ Video mil gaya! Download ho raha hai...', 'ok');
+    dlmsg.innerHTML = '<span class="spinner"></span>Starting download... live progress will appear below ⏳';
+    renderProgress({ percent: 2, detail: 'Starting…' }, 'downloading');
+    setMsg('✅ Video found! Downloading...', 'ok');
 
-    const r = await apiGetDownload(url, q);
+    let started = null;
+    try {
+      started = await apiStartJob(url, q);
+    } catch (e) {
+      if (!(e && e.legacy)) throw e;
+      return await legacyDownload(url, q);
+    }
 
-    let fname = 'video' + (q === 'audio' ? '.mp3' : '.mp4');
-    const cd = r.headers.get('Content-Disposition');
-    if (cd) {
-      const m = cd.match(/filename\*=UTF-8''(.+)/) || cd.match(/filename="(.+)"/);
-      if (m) fname = decodeURIComponent(m[1]);
+    const jobId = started.jobId;
+    if (started.estimatedSizeText) {
+      dlmsg.innerHTML = `<span class="spinner"></span>Downloading... estimated size ~${started.estimatedSizeText} ⏳`;
     }
-    const total = +(r.headers.get('Content-Length') || 0);
-    const reader = r.body.getReader();
-    const chunks = [];
-    let got = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value); got += value.length;
-      dbar.style.width = total ? Math.min(99, (got / total) * 100) + '%' : Math.min(95, got / 500000) + '%';
+
+    // STEP 3: poll real-time progress. Long 4K videos can take a while —
+    // the server auto-retries dropped connections and resumes.
+    const t0 = Date.now();
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 800));
+      let p;
+      try { p = await apiJobProgress(jobId); }
+      catch (e) {
+        if (Date.now() - t0 > 3 * 60 * 60 * 1000) throw new Error('Download timed out. Please try again.');
+        continue;
+      }
+      if (p.status === 'error') throw new Error(p.error || 'Download failed');
+      const phase = (p.status === 'merging') ? 'merge' : 'downloading';
+      renderProgress(p, phase);
+      const extra = (p.totalText ? ` (~${p.totalText})` : '') + (p.speed ? ` @ ${p.speed}` : '') + (p.eta ? `, ETA ${p.eta}` : '');
+      const retrying = /retry|alternate/i.test(p.detail || '');
+      if (p.status === 'merging') dlmsg.innerHTML = `<span class="spinner"></span>Merging video + audio...${extra} ⏳`;
+      else if (retrying) dlmsg.innerHTML = `<span class="spinner"></span>${p.detail}${extra} — resuming, keep this page open ⏳`;
+      else if ((p.percent || 0) > 0) dlmsg.innerHTML = `<span class="spinner"></span>Downloading... ${Math.round((p.percent || 0) * 10) / 10}%${extra} — keep this page open ⏳`;
+      if (p.status === 'ready') break;
     }
-    dbar.style.width = '100%';
-    const blob = new Blob(chunks, { type: q === 'audio' ? 'audio/mpeg' : 'video/mp4' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = fname;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+    // STEP 4: save the finished file
+    dlmsg.innerHTML = '<span class="spinner"></span>Almost done — saving to your device... ⏳';
+    const r = await apiGetFile(jobId);
+    const fname = await saveStreamWithProgress(r, 'video' + (q === 'audio' ? '.mp3' : '.mp4'), q === 'audio' ? 'audio/mpeg' : 'video/mp4', started.estimatedSize, api('/api/file?jobId=') + encodeURIComponent(jobId));
     dlmsg.className = 'msg ok';
-    dlmsg.textContent = '✅ Download ho gaya! File check karo: ' + fname;
+    dlmsg.textContent = '✅ Download complete! Check your file: ' + fname;
   } catch (e) {
     setMsg('❌ ' + e.message + apiHint(), 'err');
     vbox.classList.add('show');
@@ -304,18 +452,29 @@ async function downloadNow() {
     dlmsg.textContent = '❌ ' + e.message;
   } finally {
     $('dlBtn').disabled = false;
-    setTimeout(() => { dprogress.style.display = 'none'; dbar.style.width = '0%'; }, 3000);
+    setTimeout(() => { dprogress.style.display = 'none'; dbar.style.width = '0%'; dlstats.classList.remove('show'); }, 8000);
   }
+}
+
+async function legacyDownload(url, q) {
+  dlmsg.className = 'msg load';
+  dlmsg.innerHTML = '<span class="spinner"></span>Downloading... keep this page open ⏳';
+  renderProgress({ percent: 10, detail: 'Downloading…' }, 'downloading');
+  const r = await apiGetDownload(url, q);
+  const fname = await saveStreamWithProgress(r, 'video' + (q === 'audio' ? '.mp3' : '.mp4'), q === 'audio' ? 'audio/mpeg' : 'video/mp4', 0, r._dlUrl || null);
+  dlmsg.className = 'msg ok';
+  dlmsg.textContent = '✅ Download complete! Check your file: ' + fname;
 }
 
 $('dlBtn').onclick = downloadNow;
 urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') downloadNow(); });
 
-// ?url= & ?quality= se prefill + auto-start
+// Prefill from ?url= & ?quality= + auto-start
 (function boot() {
   try {
     const p = new URLSearchParams(location.search);
     const u = p.get('url'), q = p.get('quality');
+    DL_CLIENT = p.get('client') || '';
     if (u) urlInput.value = u;
     if (q) quality.value = q;
     if (u && p.get('auto') !== '0') downloadNow();

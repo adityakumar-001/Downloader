@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Video Downloader — Launcher</title>
-<!-- Server ON ho tabhi redirect hoga (band ho to yehi page par help dikhegi) -->
+<!-- Redirects only when the server is ON (otherwise help stays on this page) -->
 <style>
   body { font-family: system-ui, sans-serif; background: #14122b; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; text-align: center; }
   .box { max-width: 480px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.15); border-radius: 16px; padding: 28px; }
@@ -20,43 +20,49 @@
 <body>
 <div class="box">
   <div class="logo">📥</div>
-  <h1>Video Downloader khul raha hai...</h1>
-  <p>App khul rahi hai: <a href="http://localhost:3000/">http://localhost:3000</a></p>
-  <a class="btn" id="openBtn" href="http://localhost:3000/">▶️ App Kholo</a>
-  <div><button class="btn" id="retryBtn" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);margin-top:10px;cursor:pointer;">🔄 Dobara check karo</button></div>
-  <div id="status">🔄 Server check ho raha hai...</div>
-  <p id="help" style="display:none; margin-top:14px;">🔴 Server band lag raha hai.<br/>Pehle <code>start.bat</code> par double-click karo (kaali window khuli rahegi),<br/>phir wapas aakar <b>Dobara check karo</b> dabao.</p>
+  <h1>Opening Video Downloader...</h1>
+  <p>Opening the app: <a href="http://localhost:3000/">http://localhost:3000</a></p>
+  <a class="btn" id="openBtn" href="http://localhost:3000/">▶️ Open App</a>
+  <div><button class="btn" id="retryBtn" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);margin-top:10px;cursor:pointer;">🔄 Check again</button></div>
+  <div id="status">🔄 Checking server...</div>
+  <p id="help" style="display:none; margin-top:14px;">🔴 The server looks OFF.<br/>First double-click <code>start.bat</code> (keep the black window open),<br/>then come back and press <b>Check again</b>.</p>
 </div>
 <script>
-  // Pehle server check karo, ON ho tabhi redirect — warna yehi page par help dikhao
-  var APP = 'http://localhost:3000/';
+  // Check the server first, redirect only when ON — otherwise show help on this page.
+  // Both localhost and 127.0.0.1 are tried (one of them can fail to resolve
+  // on some Windows network setups while the other works).
+  var APPS = ['http://localhost:3000/', 'http://127.0.0.1:3000/'];
+  var APP = APPS[0];
   var tries = 0;
   async function checkOnce() {
-    try {
-      var ctrl = new AbortController();
-      var t = setTimeout(function () { ctrl.abort(); }, 3000);
-      var r = await fetch(APP + 'api/health', { signal: ctrl.signal });
-      clearTimeout(t);
-      return r.ok;
-    } catch (e) { return false; }
+    for (var i = 0; i < APPS.length; i++) {
+      try {
+        var ctrl = new AbortController();
+        var t = setTimeout(function () { ctrl.abort(); }, 3000);
+        var r = await fetch(APPS[i] + 'api/health', { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) { APP = APPS[i]; return true; }
+      } catch (e) { /* try the next address */ }
+    }
+    return false;
   }
   async function check(autoGo) {
     var el = document.getElementById('status');
     var help = document.getElementById('help');
-    el.textContent = '🔄 Server check ho raha hai... (koshish ' + (tries + 1) + ')';
+    el.textContent = '🔄 Checking server... (attempt ' + (tries + 1) + ')';
     var ok = await checkOnce();
     if (ok) {
-      el.textContent = '🟢 Server chal raha hai — app khul rahi hai...';
+      el.textContent = '🟢 Server is running — opening the app...';
       setTimeout(function () { location.replace(APP + location.search + location.hash); }, 600);
     } else {
       tries++;
       if (autoGo && tries < 15) { setTimeout(function () { check(true); }, 2000); return; }
-      el.textContent = '🔴 Server band hai — neeche steps follow karo.';
+      el.textContent = '🔴 Server is OFF — follow the steps below.';
       help.style.display = 'block';
     }
   }
   document.getElementById('retryBtn').onclick = function () { tries = 0; document.getElementById('help').style.display = 'none'; check(false); };
-  check(true); // khulte hi 30 sec tak auto-retry (server start ho raha ho to pakad lega)
+  check(true); // auto-retry for 30 sec on open (catches the server while it starts)
 </script>
 </body>
 </html>

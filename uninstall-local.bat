@@ -1,10 +1,10 @@
 @echo off
 REM Video Downloader — LOCAL DEPLOY (uninstall)
-REM Auto-start band karo + background server roko
+REM Disable auto-start + stop the background server
 cd /d "%~dp0"
-echo Auto-start hata raha hai...
+echo Removing auto-start...
 del "%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\VideoDownloader.lnk" 2>nul
-echo Background server rok raha hai...
+echo Stopping background server...
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*server.js*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
-echo Ho gaya. Dobara chalane ke liye install-local.bat ya start.bat chalao.
+echo Done. To run again, use install-local.bat or start.bat.
 pause

@@ -1,23 +1,24 @@
 # 📥 Universal Video Downloader (4K Video + Audio)
 
-Link paste karo — **4K tak Video + Audio merged MP4** download karo.
-No login. No length limit. 100% free.
+Paste a link — download **merged video + audio MP4 up to 4K**.
+No login. No length limit. 100% free. UI in English with **real-time download progress + file size**.
 
 - 🎬 Qualities: `2160p 4K` · `1440p 2K` · `1080p` · `720p` · `480p` · `360p` · `Best (up to 4K)` · `Audio MP3`
-- 🔊 Har video quality me **video + audio merged** milta hai (silent video nahi)
-- ⚡ Best Merge: highest-bitrate streams, MP4-first, `faststart` + metadata embed
+- 🔊 Every video quality comes **merged with audio** (never a silent video)
+- 📊 Real-time progress: live `%`, `downloaded / total size (MB/GB)`, `speed`, `ETA`, plus `Merging…` and `Saving…` phases
+- ⚡ Best Merge: highest-bitrate streams, MP4-first, `faststart` + embedded metadata
 - 🌐 Supported: YouTube, Instagram, Facebook, TikTok, X/Twitter, Vimeo, Dailymotion (+ direct `.mp4` links)
-- 🔗 Playlist/Mix links (`&list=...&index=...`) auto-clean hokar single video download hota hai
+- 🔗 Playlist/Mix links (`&list=...&index=...`) auto-clean to a single-video download
 
-## 🖥️ Pages (Download API se linked)
+## 🖥️ Pages (linked to the Download API)
 
-| Page | URL | Kaam |
+| Page | URL | Purpose |
 |------|-----|------|
-| Home / Downloader | `/` (`docs/index.html`) | Link paste → quality chuno → download. Qualities server se dynamic aati hain (size + 4K badge samet) |
-| Share / Download page | `/download.html?url=VIDEO_LINK&quality=720` | Direct shareable download link — khulte hi auto-download shuru. `&quality=2160\|1440\|1080\|720\|480\|360\|best\|audio`, `&auto=0` se auto-start band, `&api=` se alag server |
+| Home / Downloader | `/` (`docs/index.html`) | Paste link → pick quality → download. Qualities load dynamically from the server (with size + 4K badge). Progress is live with size/speed/ETA. |
+| Share / Download page | `/download.html?url=VIDEO_LINK&quality=720` | Direct shareable download link — auto-starts on open. `&quality=2160\|1440\|1080\|720\|480\|360\|best\|audio`, `&auto=0` disables auto-start, `&api=` overrides the server |
 
-Dono pages same backend API use karte hain — **API in-build hai, user ko koi setting nahi karni.**
-Owner (aap) sirf ek baar `docs/config.js` me `window.VD_DEFAULT_API = "https://aapka-server.onrender.com"` dalo. Uske baad har user auto-connect hoga (same-origin → DEFAULT → fallback). `?api=` sirf share-link override ke liye raha hai.
+Both pages use the same backend API — **the API is built in, users configure nothing.**
+The owner only sets `window.VD_DEFAULT_API = "https://your-server.onrender.com"` once in `docs/config.js`. Every visitor then auto-connects (same-origin → DEFAULT → fallback). `?api=` remains only as a share-link override.
 
 ## 🚀 Quick Start (Windows)
 
@@ -25,7 +26,7 @@ Owner (aap) sirf ek baar `docs/config.js` me `window.VD_DEFAULT_API = "https://a
 start.bat
 ```
 
-Phir browser me kholo: **http://localhost:3000**
+Then open in your browser: **http://localhost:3000**
 
 Manual:
 
@@ -34,31 +35,31 @@ npm install
 npm start
 ```
 
-> Node.js LTS chahiye: https://nodejs.org
+> Requires Node.js LTS: https://nodejs.org
 
-## 🌍 Website link banao (GitHub Pages) — step by step
+## 🌍 Make a website link (GitHub Pages) — step by step
 
-Repo ka link bhejne se website **nahi** khulti — pehle Pages ON karna padta hai:
+Sending the repo link alone does **not** open the website — first enable Pages:
 
-1. GitHub par apna repo kholo → **Settings** (upar tabs me) → **Pages** (left menu).
-2. **Build and deployment** me: Source = **Deploy from a branch**.
-3. Branch = **main** (ya `master`), folder = **`/docs`** → **Save** dabao.
-4. 1–2 min ruko. Fir site khulegi: **`https://USERNAME.github.io/REPO-NAME/`**
-   (USERNAME = tumhara GitHub username, REPO-NAME = repo ka naam).
-5. Ye link kisi ko bhi bhejo — **Universal Video Downloader** website khulegi, same features ke saath.
+1. Open your repo on GitHub → **Settings** (top tabs) → **Pages** (left menu).
+2. Under **Build and deployment**: Source = **Deploy from a branch**.
+3. Branch = **main** (or `master`), folder = **`/docs`** → press **Save**.
+4. Wait 1–2 min. Then the site opens at: **`https://USERNAME.github.io/REPO-NAME/`**
+   (USERNAME = your GitHub username, REPO-NAME = repo name).
+5. Send that link to anyone — the **Universal Video Downloader** website opens with the same features.
 
-> ⚠️ **Jaruri samajh:** GitHub Pages par **sirf website** (frontend) chalti hai. Asli **download** backend (`server.js` + yt-dlp + ffmpeg) se hota hai, jo alag deploy karna padta hai (neeche dekho). Backend bina page khulega par download nahi hoga — page khud hint dikhayega.
+> ⚠️ **Important:** GitHub Pages hosts **only the website** (frontend). The actual **download** runs on the backend (`server.js` + yt-dlp + ffmpeg), which must be deployed separately (see below). Without a backend the page opens but downloads fail — the page shows a hint.
 
-## ☁️ Backend deploy (download ke liye — Render free)
+## ☁️ Deploy the backend (needed for downloads — free on Render)
 
-1. https://render.com par free account banao → **New +** → **Web Service** → apna GitHub repo connect karo.
-2. Settings: **Build Command** = `npm install`, **Start Command** = `npm start`. (PORT Render khud deta hai — code me support hai.)
-3. Deploy ke baad URL milega, jaise `https://video-downloader-xyz.onrender.com`.
-4. Website ko backend se jodo — **sirf 1 line (in-build, user ko kuch nahi karna):**
-   `docs/config.js` kholo aur dalo: `window.VD_DEFAULT_API = "https://video-downloader-xyz.onrender.com";`
-   Save + commit + push. Bas — ab har visitor auto-connect hoga, koi ⚙️ setting nahi.
+1. Create a free account at https://render.com → **New +** → **Web Service** → connect your GitHub repo.
+2. Settings: **Build Command** = `npm install`, **Start Command** = `npm start`. (Render provides PORT itself — the code supports it.)
+3. After deploy you get a URL like `https://video-downloader-xyz.onrender.com`.
+4. Connect the website to the backend — **just 1 line (built-in, users do nothing):**
+   Open `docs/config.js` and set: `window.VD_DEFAULT_API = "https://video-downloader-xyz.onrender.com";`
+   Save + commit + push. Done — every visitor auto-connects, no ⚙️ settings.
 
-`PORT` env se port set hota hai (default `3000`). Railway/VPS par bhi same: `npm install` → `npm start`.
+`PORT` sets the port via env (default `3000`). Same on Railway/VPS: `npm install` → `npm start`.
 
 ## 🔌 API Docs
 
@@ -66,10 +67,10 @@ Repo ka link bhejne se website **nahi** khulti — pehle Pages ON karna padta ha
 
 ```bash
 curl http://localhost:3000/api/health
-# {"ok":true,"message":"Server chal raha hai. No login chahiye."}
+# {"ok":true,"message":"Server is running. No login required."}
 ```
 
-### `POST /api/info` — title, thumbnail, duration, asli qualities + size
+### `POST /api/info` — title, thumbnail, duration, real qualities + size
 
 ```bash
 curl -X POST http://localhost:3000/api/info \
@@ -94,25 +95,54 @@ Response (short):
 }
 ```
 
-### `GET /api/download?url=...&quality=...` — file download (merged MP4 / MP3)
+### `POST /api/download-start` — start a progress-tracked job (recommended)
+
+```bash
+curl -X POST http://localhost:3000/api/download-start \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.youtube.com/watch?v=lDbItmGvzDM","quality":"720"}'
+# {"jobId":"job_...","estimatedSize":12345678,"estimatedSizeText":"11.8 MB"}
+```
+
+### `GET /api/progress?jobId=...` — real-time progress with size
+
+```bash
+curl "http://localhost:3000/api/progress?jobId=job_..."
+# {"jobId":"job_...","status":"downloading","percent":45.2,
+#  "downloadedBytes":5612311,"totalBytes":12345678,
+#  "downloadedText":"5.4 MB","totalText":"11.8 MB",
+#  "speed":"1.2 MB/s","eta":"00:05","detail":"Downloading...","filename":"..."}
+```
+
+`status`: `starting` → `downloading` → `merging` → `ready` (or `error`).
+
+### `GET /api/file?jobId=...` — download the finished file
+
+```bash
+curl -L "http://localhost:3000/api/file?jobId=job_..." -o video.mp4
+```
+
+Headers: `Content-Disposition` (correct filename), `Content-Type` (`video/mp4` / `audio/mpeg`), `Content-Length` (exact size for the progress bar).
+
+### `GET /api/download?url=...&quality=...` — classic single-shot file download (merged MP4 / MP3)
 
 ```bash
 curl -L "http://localhost:3000/api/download?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DlDbItmGvzDM&quality=720" -o video.mp4
 ```
 
-| `quality` | Matlab |
+| `quality` | Meaning |
 |-----------|--------|
 | `best` | Best available (up to 4K), video+audio merged |
-| `2160` / `4k` | 4K Ultra HD (available ho to), video+audio merged |
+| `2160` / `4k` | 4K Ultra HD (if available), video+audio merged |
 | `1440` / `2k` | 2K Quad HD, video+audio merged |
-| `1080` / `720` / `480` / `360` | Us height tak best video+audio merged |
+| `1080` / `720` / `480` / `360` | Best up to that height, video+audio merged |
 | `audio` / `mp3` | Audio only, MP3 (best quality) |
 
-Headers: `Content-Disposition` (sahi filename), `Content-Type` (`video/mp4` / `audio/mpeg`).
+Headers: `Content-Disposition` (correct filename), `Content-Type` (`video/mp4` / `audio/mpeg`).
 
-### `POST /api/cookies` — private / login wale videos (🔑 cookies)
+### `POST /api/cookies` — private / login-protected videos (🔑 cookies)
 
-Sirf wahi videos khulengi jo **tumhare account** ko dikhti hain. Steps:
+Only videos visible to **your account** will open. Steps:
 
 ```bash
 curl -X POST http://localhost:3000/api/cookies \
@@ -121,11 +151,11 @@ curl -X POST http://localhost:3000/api/cookies \
 # {"token":"...","expiresIn":1800}
 ```
 
-1. Chrome/Edge me **"Get cookies.txt LOCALLY"** extension se `youtube.com` ke cookies export karo.
-2. Website par **🔑 Private / login wala video?** section me wo `.txt` file lagao (token 30 min valid, phir auto-delete).
-3. Phir link paste karo — `info`/`download` me token khud lag jayega.
+1. In Chrome/Edge, export your `youtube.com` cookies with the **"Get cookies.txt LOCALLY"** extension.
+2. On the website, attach that `.txt` file in the **🔑 Private / login-protected video?** section (token valid 30 min, then auto-deleted).
+3. Then paste the link — the token is added to `info`/`download` automatically.
 
-> ⚠️ Doosre ke private video bina permission ke mat kholo. Share link me token (`&ct=`) aaye to kisi ko mat bhejo.
+> ⚠️ Don't open someone else's private videos without permission. If a share link contains a token (`&ct=`), don't send it to anyone.
 
 ## 🧠 How it works
 
@@ -135,16 +165,19 @@ Browser (index.html / download.html)
    --yt-dlp + ffmpeg--> merged MP4/MP3 --> browser download
 ```
 
-- YouTube links normalize hote hain (`youtu.be`, `/shorts/`, `/embed/`, `music.youtube.com`, `&list=` cleanup).
-- Format chain MP4-first hai: `bestvideo[ext=mp4]+bestaudio[ext=m4a]` → fallback `bestvideo+bestaudio` (4K VP9/AV1 samet), phir ffmpeg merge (`faststart` + metadata).
-- Merge fail ho to single-file fallback (`best[ext=mp4]/best`).
+- New flow with live progress: `POST /api/download-start` → poll `GET /api/progress` (yt-dlp output parsed live: %, MB/GB downloaded/total, speed, ETA, merging state) → `GET /api/file` streams the finished file with `Content-Length`.
+- Interrupted downloads auto-resume: partial files are kept (`--continue`), each retry re-extracts fresh format URLs, retries 10x with pauses, and YouTube retries also switch player client — a "few MBs then error" restarts from where it stopped instead of failing. Merge is stream-copy (remux) only, never re-encoded.
+- YouTube links are normalized (`youtu.be`, `/shorts/`, `/embed/`, `music.youtube.com`, `&list=` cleanup).
+- Format chain is MP4-first: `bestvideo[ext=mp4]+bestaudio[ext=m4a]` → fallback `bestvideo+bestaudio` (incl. 4K VP9/AV1), then ffmpeg merge (`faststart` + metadata).
+- If merging fails, single-file fallback (`best[ext=mp4]/best`).
+- The classic `GET /api/download` endpoint is kept for share links / curl.
 
-## ⚠️ Note
+## ⚠️ Notes
 
-- Sirf **public** videos download hote hain. Private/login wale nahi honge.
-- Sirf apne ya copyright-free videos download karo.
-- YouTube kabhi-kabhi bot-check (HTTP 429) lagata hai — 1–2 min ruk kar retry karo.
+- Only **public** videos download without cookies. Login-protected ones need your own cookies.
+- Only download your own or copyright-free videos.
+- YouTube sometimes applies bot-checks (HTTP 429) — wait 1–2 min and retry.
 
 ## 📄 License
 
-MIT — dekho [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
